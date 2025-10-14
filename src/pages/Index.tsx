@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { FileUploader } from "@/components/FileUploader";
 import { DocumentResults } from "@/components/DocumentResults";
 import { KeywordMatrix } from "@/components/KeywordMatrix";
@@ -6,17 +7,81 @@ import { ProcessedDocument, DocumentChunk } from "@/types/document";
 import { calculateChunks, aggregateChunkResults } from "@/utils/pdfChunker";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText } from "lucide-react";
+import { FileText, LogOut, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Session, User } from "@supabase/supabase-js";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [documents, setDocuments] = useState<ProcessedDocument[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [storageUsed, setStorageUsed] = useState(0);
+  const [storageLimit, setStorageLimit] = useState(104857600); // 100MB default
   const { toast } = useToast();
 
-  // Load existing documents from database
   useEffect(() => {
-    loadDocuments();
-  }, []);
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (!session) {
+          setTimeout(() => {
+            navigate("/auth");
+          }, 0);
+        } else {
+          setTimeout(() => {
+            loadUserData(session.user.id);
+          }, 0);
+        }
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (!session) {
+        navigate("/auth");
+      } else {
+        loadUserData(session.user.id);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const loadUserData = async (userId: string) => {
+    await Promise.all([
+      loadDocuments(),
+      loadStorageInfo(userId)
+    ]);
+  };
+
+  const loadStorageInfo = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('storage_used_bytes, storage_limit_bytes')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error loading storage info:', error);
+      return;
+    }
+
+    if (data) {
+      setStorageUsed(Number(data.storage_used_bytes));
+      setStorageLimit(Number(data.storage_limit_bytes));
+    }
+  };
 
   const loadDocuments = async () => {
     const { data, error } = await supabase
@@ -43,6 +108,11 @@ const Index = () => {
     }
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+  };
+
   const handleDelete = async (index: number) => {
     const doc = documents[index];
     
@@ -61,6 +131,11 @@ const Index = () => {
         });
         return;
       }
+
+      // Refresh storage info
+      if (user) {
+        await loadStorageInfo(user.id);
+      }
     }
 
     setDocuments(prev => prev.filter((_, i) => i !== index));
@@ -72,9 +147,27 @@ const Index = () => {
   };
 
   const processFile = async (file: File) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to upload documents",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check storage limit
+    if (storageUsed + file.size > storageLimit) {
+      toast({
+        title: "Storage limit exceeded",
+        description: `You have ${((storageLimit - storageUsed) / 1024 / 1024).toFixed(2)}MB remaining. This file is ${(file.size / 1024 / 1024).toFixed(2)}MB.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     const docIndex = documents.length;
     
-    // Add document to state with uploading status
     const newDoc: ProcessedDocument = {
       fileName: file.name,
       chunks: [],
@@ -86,7 +179,7 @@ const Index = () => {
     setDocuments(prev => [...prev, newDoc]);
 
     try {
-      // Insert into database
+      // Insert into database with user_id
       const { data: dbDoc, error: insertError } = await supabase
         .from('documents')
         .insert({
@@ -95,25 +188,21 @@ const Index = () => {
           final_type: 'Unknown',
           final_confidence: 0,
           status: 'uploading',
-          chunks: []
+          chunks: [],
+          user_id: user.id
         })
         .select()
         .single();
 
       if (insertError) throw insertError;
 
-      // Update local state with database ID
       setDocuments(prev => prev.map((doc, i) => 
         i === docIndex ? { ...doc, id: dbDoc.id } : doc
       ));
 
-      // Determine number of pages (simplified - for real PDFs would need PDF.js)
       const isPDF = file.type === 'application/pdf';
-      const estimatedPages = isPDF ? 5 : 1; // Simplified estimation
+      const estimatedPages = isPDF ? 5 : 1;
       
-      const chunks = calculateChunks(estimatedPages);
-      
-      // Update status to OCR
       setDocuments(prev => prev.map((doc, i) => 
         i === docIndex ? { ...doc, status: "ocr" as const } : doc
       ));
@@ -123,7 +212,6 @@ const Index = () => {
         .update({ status: 'ocr' })
         .eq('id', dbDoc.id);
 
-      // Process OCR (for simplicity, processing whole file)
       const formData = new FormData();
       formData.append('file', file);
 
@@ -137,7 +225,6 @@ const Index = () => {
 
       const ocrText = ocrData.text;
 
-      // Update status to classifying
       setDocuments(prev => prev.map((doc, i) => 
         i === docIndex ? { ...doc, status: "classifying" as const } : doc
       ));
@@ -147,7 +234,6 @@ const Index = () => {
         .update({ status: 'classifying' })
         .eq('id', dbDoc.id);
 
-      // Classify document
       const { data: classifyData, error: classifyError } = await supabase.functions.invoke('classify-document', {
         body: { ocrText }
       });
@@ -156,7 +242,6 @@ const Index = () => {
         throw new Error('Classification failed');
       }
 
-      // Create chunk result
       const chunkResult: DocumentChunk = {
         chunkIndex: 1,
         pageCount: estimatedPages,
@@ -176,7 +261,6 @@ const Index = () => {
         }
       ]);
 
-      // Update database
       await supabase
         .from('documents')
         .update({
@@ -187,7 +271,6 @@ const Index = () => {
         })
         .eq('id', dbDoc.id);
 
-      // Update with final results
       setDocuments(prev => prev.map((doc, i) => 
         i === docIndex ? {
           ...doc,
@@ -197,6 +280,9 @@ const Index = () => {
           status: "finished" as const
         } : doc
       ));
+
+      // Refresh storage info
+      await loadStorageInfo(user.id);
 
       toast({
         title: "Document processed",
@@ -236,7 +322,6 @@ const Index = () => {
   const handleFilesSelected = async (files: File[]) => {
     setIsProcessing(true);
 
-    // Process files sequentially to avoid overwhelming the APIs
     for (const file of files) {
       await processFile(file);
     }
@@ -244,17 +329,56 @@ const Index = () => {
     setIsProcessing(false);
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!session || !user) {
+    return null;
+  }
+
+  const storagePercentage = (storageUsed / storageLimit) * 100;
+  const storageMB = (storageUsed / 1024 / 1024).toFixed(2);
+  const limitMB = (storageLimit / 1024 / 1024).toFixed(0);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto py-8 px-4 max-w-7xl">
         <header className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="rounded-lg bg-primary p-2">
-              <FileText className="h-6 w-6 text-primary-foreground" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-primary p-2">
+                <FileText className="h-6 w-6 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold">AI Document Classifier</h1>
+                <p className="text-sm text-muted-foreground">
+                  {user.email}
+                </p>
+              </div>
             </div>
-            <h1 className="text-3xl font-bold">AI Document Classifier</h1>
+            <Button variant="outline" onClick={handleSignOut}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
           </div>
-          <p className="text-muted-foreground">
+
+          {/* Storage Usage */}
+          <div className="bg-card border rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">Storage Usage</span>
+              <span className="text-sm text-muted-foreground">
+                {storageMB}MB / {limitMB}MB
+              </span>
+            </div>
+            <Progress value={storagePercentage} className="h-2" />
+          </div>
+
+          <p className="text-muted-foreground mt-4">
             Powered by OCR.Space and Gemini AI with weighted keyword classification
           </p>
         </header>

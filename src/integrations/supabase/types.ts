@@ -26,6 +26,7 @@ export type Database = {
           id: string
           status: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           chunks?: Json
@@ -38,6 +39,7 @@ export type Database = {
           id?: string
           status?: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           chunks?: Json
@@ -49,6 +51,40 @@ export type Database = {
           final_type?: string
           id?: string
           status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          storage_limit_bytes: number
+          storage_used_bytes: number
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          storage_limit_bytes?: number
+          storage_used_bytes?: number
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          storage_limit_bytes?: number
+          storage_used_bytes?: number
           updated_at?: string
         }
         Relationships: []
