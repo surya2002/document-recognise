@@ -3,7 +3,7 @@ import { KEYWORD_MATRIX } from "@/types/document";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, Edit, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Edit, Plus, X, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ export const KeywordMatrix = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editedMatrix, setEditedMatrix] = useState(KEYWORD_MATRIX);
+  const [newDocType, setNewDocType] = useState("");
 
   const handleKeywordChange = (docType: keyof typeof KEYWORD_MATRIX, level: 'strong' | 'moderate' | 'weak', index: number, value: string) => {
     setEditedMatrix(prev => ({
@@ -50,6 +51,28 @@ export const KeywordMatrix = () => {
         [level]: prev[docType][level].filter((_, i) => i !== index)
       }
     }));
+  };
+
+  const handleAddDocType = () => {
+    if (!newDocType.trim()) return;
+    
+    setEditedMatrix(prev => ({
+      ...prev,
+      [newDocType]: {
+        strong: [],
+        moderate: [],
+        weak: []
+      }
+    }));
+    setNewDocType("");
+  };
+
+  const handleRemoveDocType = (docType: string) => {
+    setEditedMatrix(prev => {
+      const newMatrix = { ...prev };
+      delete newMatrix[docType];
+      return newMatrix;
+    });
   };
 
   const handleSave = () => {
@@ -92,9 +115,36 @@ export const KeywordMatrix = () => {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-6">
+                {/* Add New Document Type */}
+                <div className="border-b pb-4">
+                  <Label className="text-base font-semibold mb-2 block">Add New Document Type</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newDocType}
+                      onChange={(e) => setNewDocType(e.target.value)}
+                      placeholder="Enter document type name..."
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddDocType()}
+                    />
+                    <Button onClick={handleAddDocType} disabled={!newDocType.trim()}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Type
+                    </Button>
+                  </div>
+                </div>
                 {Object.entries(editedMatrix).map(([docType, keywords]) => (
-                  <div key={docType} className="space-y-3">
-                    <h3 className="font-semibold text-lg">{docType}</h3>
+                  <div key={docType} className="space-y-3 border-b pb-4 last:border-b-0">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-lg">{docType}</h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveDocType(docType)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Remove Type
+                      </Button>
+                    </div>
                     <div className="grid gap-4">
                       {/* Strong Indicators */}
                       <div>
