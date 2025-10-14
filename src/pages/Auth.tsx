@@ -39,8 +39,8 @@ const Auth = () => {
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
-        // Clear stale auth data and force a clean state
-        supabase.auth.signOut({ scope: 'local' });
+        // Clear ALL auth data from localStorage
+        localStorage.removeItem('sb-cipvztetzfcyecvzqztn-auth-token');
         setSession(null);
         return;
       }
@@ -50,8 +50,8 @@ const Auth = () => {
         navigate("/");
       }
     }).catch(() => {
-      // Handle any unexpected errors by clearing auth state
-      supabase.auth.signOut({ scope: 'local' });
+      // Clear ALL auth data from localStorage on any error
+      localStorage.removeItem('sb-cipvztetzfcyecvzqztn-auth-token');
       setSession(null);
     });
 
