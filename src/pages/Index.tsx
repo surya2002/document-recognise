@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FileUploader } from "@/components/FileUploader";
 import { DocumentResults } from "@/components/DocumentResults";
 import { KeywordMatrix } from "@/components/KeywordMatrix";
@@ -12,6 +12,64 @@ const Index = () => {
   const [documents, setDocuments] = useState<ProcessedDocument[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
+
+  // Load existing documents from database
+  useEffect(() => {
+    loadDocuments();
+  }, []);
+
+  const loadDocuments = async () => {
+    const { data, error } = await supabase
+      .from('documents')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error loading documents:', error);
+      return;
+    }
+
+    if (data) {
+      const loadedDocs: ProcessedDocument[] = data.map(doc => ({
+        fileName: doc.file_name,
+        chunks: Array.isArray(doc.chunks) ? doc.chunks as any as DocumentChunk[] : [],
+        finalType: doc.final_type as ProcessedDocument['finalType'],
+        finalConfidence: Number(doc.final_confidence),
+        status: doc.status as ProcessedDocument['status'],
+        error: doc.error || undefined,
+        id: doc.id
+      }));
+      setDocuments(loadedDocs);
+    }
+  };
+
+  const handleDelete = async (index: number) => {
+    const doc = documents[index];
+    
+    if (doc.id) {
+      const { error } = await supabase
+        .from('documents')
+        .delete()
+        .eq('id', doc.id);
+
+      if (error) {
+        console.error('Error deleting document:', error);
+        toast({
+          title: "Delete failed",
+          description: "Failed to delete document from database",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
+    setDocuments(prev => prev.filter((_, i) => i !== index));
+    
+    toast({
+      title: "Document removed",
+      description: `${doc.fileName} has been removed`,
+    });
+  };
 
   const processFile = async (file: File) => {
     const docIndex = documents.length;
@@ -28,6 +86,27 @@ const Index = () => {
     setDocuments(prev => [...prev, newDoc]);
 
     try {
+      // Insert into database
+      const { data: dbDoc, error: insertError } = await supabase
+        .from('documents')
+        .insert({
+          file_name: file.name,
+          file_size: file.size,
+          final_type: 'Unknown',
+          final_confidence: 0,
+          status: 'uploading',
+          chunks: []
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Update local state with database ID
+      setDocuments(prev => prev.map((doc, i) => 
+        i === docIndex ? { ...doc, id: dbDoc.id } : doc
+      ));
+
       // Determine number of pages (simplified - for real PDFs would need PDF.js)
       const isPDF = file.type === 'application/pdf';
       const estimatedPages = isPDF ? 5 : 1; // Simplified estimation
@@ -38,6 +117,11 @@ const Index = () => {
       setDocuments(prev => prev.map((doc, i) => 
         i === docIndex ? { ...doc, status: "ocr" as const } : doc
       ));
+
+      await supabase
+        .from('documents')
+        .update({ status: 'ocr' })
+        .eq('id', dbDoc.id);
 
       // Process OCR (for simplicity, processing whole file)
       const formData = new FormData();
@@ -57,6 +141,11 @@ const Index = () => {
       setDocuments(prev => prev.map((doc, i) => 
         i === docIndex ? { ...doc, status: "classifying" as const } : doc
       ));
+
+      await supabase
+        .from('documents')
+        .update({ status: 'classifying' })
+        .eq('id', dbDoc.id);
 
       // Classify document
       const { data: classifyData, error: classifyError } = await supabase.functions.invoke('classify-document', {
@@ -87,6 +176,17 @@ const Index = () => {
         }
       ]);
 
+      // Update database
+      await supabase
+        .from('documents')
+        .update({
+          final_type: finalResult.finalType,
+          final_confidence: finalResult.finalConfidence,
+          chunks: [chunkResult] as any,
+          status: 'finished'
+        })
+        .eq('id', dbDoc.id);
+
       // Update with final results
       setDocuments(prev => prev.map((doc, i) => 
         i === docIndex ? {
@@ -106,6 +206,17 @@ const Index = () => {
     } catch (error) {
       console.error('Error processing file:', error);
       
+      const doc = documents[docIndex];
+      if (doc.id) {
+        await supabase
+          .from('documents')
+          .update({
+            status: 'error',
+            error: error instanceof Error ? error.message : 'Processing failed'
+          })
+          .eq('id', doc.id);
+      }
+
       setDocuments(prev => prev.map((doc, i) => 
         i === docIndex ? {
           ...doc,
@@ -156,7 +267,7 @@ const Index = () => {
 
           <KeywordMatrix />
 
-          <DocumentResults documents={documents} />
+          <DocumentResults documents={documents} onDelete={handleDelete} />
         </div>
       </div>
     </div>

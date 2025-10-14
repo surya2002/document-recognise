@@ -17,6 +17,7 @@ export interface DocumentChunk {
 }
 
 export interface ProcessedDocument {
+  id?: string;
   fileName: string;
   chunks: DocumentChunk[];
   finalType: DocumentType;

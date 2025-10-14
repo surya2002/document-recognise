@@ -2,14 +2,15 @@ import { ProcessedDocument } from "@/types/document";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { FileText, Download, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { FileText, Download, Loader2, CheckCircle2, AlertCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface DocumentResultsProps {
   documents: ProcessedDocument[];
+  onDelete: (index: number) => void;
 }
 
-export const DocumentResults = ({ documents }: DocumentResultsProps) => {
+export const DocumentResults = ({ documents, onDelete }: DocumentResultsProps) => {
   if (documents.length === 0) return null;
 
   const getStatusIcon = (status: ProcessedDocument["status"]) => {
@@ -48,9 +49,19 @@ export const DocumentResults = ({ documents }: DocumentResultsProps) => {
           {documents.map((doc, index) => (
             <div
               key={index}
-              className="border rounded-lg p-4 space-y-3 hover:bg-muted/50 transition-colors"
+              className="border rounded-lg p-4 space-y-3 hover:bg-muted/50 transition-colors relative"
             >
-              <div className="flex items-start justify-between gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-2 right-2 h-8 w-8"
+                onClick={() => onDelete(index)}
+                title="Remove document"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+
+              <div className="flex items-start justify-between gap-4 pr-10">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2">
                     {getStatusIcon(doc.status)}
