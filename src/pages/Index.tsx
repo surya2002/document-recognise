@@ -412,7 +412,7 @@ const Index = () => {
           </div>
 
           <p className="text-muted-foreground mt-4">
-            Powered by OCR.Space and Gemini AI with weighted keyword classification
+            {user.user_metadata?.full_name || user.email?.split('@')[0] || 'Your'}'s Space
           </p>
         </header>
 
