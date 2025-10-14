@@ -3,7 +3,7 @@ import { KEYWORD_MATRIX } from "@/types/document";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, Edit } from "lucide-react";
+import { ChevronDown, ChevronUp, Edit, Plus, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -32,9 +32,40 @@ export const KeywordMatrix = () => {
     }));
   };
 
+  const handleAddKeyword = (docType: keyof typeof KEYWORD_MATRIX, level: 'strong' | 'moderate' | 'weak') => {
+    setEditedMatrix(prev => ({
+      ...prev,
+      [docType]: {
+        ...prev[docType],
+        [level]: [...prev[docType][level], '']
+      }
+    }));
+  };
+
+  const handleRemoveKeyword = (docType: keyof typeof KEYWORD_MATRIX, level: 'strong' | 'moderate' | 'weak', index: number) => {
+    setEditedMatrix(prev => ({
+      ...prev,
+      [docType]: {
+        ...prev[docType],
+        [level]: prev[docType][level].filter((_, i) => i !== index)
+      }
+    }));
+  };
+
   const handleSave = () => {
-    // In a real app, you might save this to a database or localStorage
-    Object.assign(KEYWORD_MATRIX, editedMatrix);
+    // Filter out empty keywords before saving
+    const cleanedMatrix = Object.fromEntries(
+      Object.entries(editedMatrix).map(([docType, keywords]) => [
+        docType,
+        {
+          strong: keywords.strong.filter(kw => kw.trim() !== ''),
+          moderate: keywords.moderate.filter(kw => kw.trim() !== ''),
+          weak: keywords.weak.filter(kw => kw.trim() !== '')
+        }
+      ])
+    ) as typeof KEYWORD_MATRIX;
+    
+    Object.assign(KEYWORD_MATRIX, cleanedMatrix);
     setIsEditOpen(false);
   };
 
@@ -57,7 +88,7 @@ export const KeywordMatrix = () => {
               <DialogHeader>
                 <DialogTitle>Edit Keyword Matrix</DialogTitle>
                 <DialogDescription>
-                  Customize the keywords used for document classification
+                  Customize the keywords used for document classification. Use + to add indicators and X to remove them.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-6">
@@ -65,39 +96,104 @@ export const KeywordMatrix = () => {
                   <div key={docType} className="space-y-3">
                     <h3 className="font-semibold text-lg">{docType}</h3>
                     <div className="grid gap-4">
+                      {/* Strong Indicators */}
                       <div>
-                        <Label className="text-success">Strong Indicators (+3)</Label>
-                        <div className="space-y-2 mt-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <Label className="text-success">Strong Indicators (+3)</Label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleAddKeyword(docType as keyof typeof KEYWORD_MATRIX, 'strong')}
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add
+                          </Button>
+                        </div>
+                        <div className="space-y-2">
                           {keywords.strong.map((kw, idx) => (
-                            <Input
-                              key={idx}
-                              value={kw}
-                              onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'strong', idx, e.target.value)}
-                            />
+                            <div key={idx} className="flex gap-2">
+                              <Input
+                                value={kw}
+                                onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'strong', idx, e.target.value)}
+                                placeholder="Enter keyword..."
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveKeyword(docType as keyof typeof KEYWORD_MATRIX, 'strong', idx)}
+                                className="flex-shrink-0"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
                           ))}
                         </div>
                       </div>
+
+                      {/* Moderate Indicators */}
                       <div>
-                        <Label className="text-warning">Moderate Indicators (+2)</Label>
-                        <div className="space-y-2 mt-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <Label className="text-warning">Moderate Indicators (+2)</Label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleAddKeyword(docType as keyof typeof KEYWORD_MATRIX, 'moderate')}
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add
+                          </Button>
+                        </div>
+                        <div className="space-y-2">
                           {keywords.moderate.map((kw, idx) => (
-                            <Input
-                              key={idx}
-                              value={kw}
-                              onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'moderate', idx, e.target.value)}
-                            />
+                            <div key={idx} className="flex gap-2">
+                              <Input
+                                value={kw}
+                                onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'moderate', idx, e.target.value)}
+                                placeholder="Enter keyword..."
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveKeyword(docType as keyof typeof KEYWORD_MATRIX, 'moderate', idx)}
+                                className="flex-shrink-0"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
                           ))}
                         </div>
                       </div>
+
+                      {/* Weak Indicators */}
                       <div>
-                        <Label>Weak Indicators (+1)</Label>
-                        <div className="space-y-2 mt-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <Label>Weak Indicators (+1)</Label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleAddKeyword(docType as keyof typeof KEYWORD_MATRIX, 'weak')}
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add
+                          </Button>
+                        </div>
+                        <div className="space-y-2">
                           {keywords.weak.map((kw, idx) => (
-                            <Input
-                              key={idx}
-                              value={kw}
-                              onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'weak', idx, e.target.value)}
-                            />
+                            <div key={idx} className="flex gap-2">
+                              <Input
+                                value={kw}
+                                onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'weak', idx, e.target.value)}
+                                placeholder="Enter keyword..."
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveKeyword(docType as keyof typeof KEYWORD_MATRIX, 'weak', idx)}
+                                className="flex-shrink-0"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
                           ))}
                         </div>
                       </div>
