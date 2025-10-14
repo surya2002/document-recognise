@@ -25,9 +25,16 @@ serve(async (req) => {
 
     console.log(`Processing file: ${file.name}, size: ${file.size} bytes`);
 
-    // Convert file to base64
+    // Convert file to base64 (chunk-based to avoid stack overflow on large files)
     const bytes = await file.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(bytes)));
+    const uint8Array = new Uint8Array(bytes);
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.slice(i, i + chunkSize);
+      binary += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    const base64 = btoa(binary);
     
     // Call OCR.Space API
     const ocrFormData = new FormData();

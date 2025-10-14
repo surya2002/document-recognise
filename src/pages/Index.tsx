@@ -220,7 +220,18 @@ const Index = () => {
       });
 
       if (ocrError || !ocrData?.success) {
-        throw new Error(ocrData?.error || 'OCR extraction failed');
+        const errorMsg = ocrData?.error || ocrError?.message || 'OCR extraction failed';
+        
+        // Update database with error state
+        await supabase
+          .from('documents')
+          .update({
+            status: 'error',
+            error: errorMsg
+          })
+          .eq('id', dbDoc.id);
+        
+        throw new Error(errorMsg);
       }
 
       const ocrText = ocrData.text;
