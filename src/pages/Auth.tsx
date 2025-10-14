@@ -37,11 +37,22 @@ const Auth = () => {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        // Clear stale auth data and force a clean state
+        supabase.auth.signOut({ scope: 'local' });
+        setSession(null);
+        return;
+      }
+      
       setSession(session);
       if (session) {
         navigate("/");
       }
+    }).catch(() => {
+      // Handle any unexpected errors by clearing auth state
+      supabase.auth.signOut({ scope: 'local' });
+      setSession(null);
     });
 
     return () => subscription.unsubscribe();

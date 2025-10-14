@@ -43,7 +43,17 @@ const Index = () => {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        // Clear stale auth data and redirect to login
+        supabase.auth.signOut({ scope: 'local' });
+        setSession(null);
+        setUser(null);
+        navigate("/auth");
+        setLoading(false);
+        return;
+      }
+      
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -52,6 +62,13 @@ const Index = () => {
       } else {
         loadUserData(session.user.id);
       }
+      setLoading(false);
+    }).catch(() => {
+      // Handle any unexpected errors by clearing auth state
+      supabase.auth.signOut({ scope: 'local' });
+      setSession(null);
+      setUser(null);
+      navigate("/auth");
       setLoading(false);
     });
 
