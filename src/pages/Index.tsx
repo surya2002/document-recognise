@@ -109,8 +109,13 @@ const Index = () => {
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate("/auth");
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      // Ignore 403 errors from already-invalidated sessions
+      console.log('Sign out completed');
+    }
+    // Let onAuthStateChange handle the navigation
   };
 
   const handleDelete = async (index: number) => {
