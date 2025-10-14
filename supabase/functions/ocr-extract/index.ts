@@ -62,11 +62,20 @@ serve(async (req) => {
     const ocrResult = await ocrResponse.json();
     console.log('OCR result:', JSON.stringify(ocrResult).substring(0, 200));
 
-    if (ocrResult.IsErroredOnProcessing) {
-      throw new Error(ocrResult.ErrorMessage?.[0] || 'OCR processing failed');
-    }
-
     const extractedText = ocrResult.ParsedResults?.[0]?.ParsedText || '';
+    
+    // Handle page limit warnings (OCR.Space has 3-page limit for PDFs)
+    if (ocrResult.IsErroredOnProcessing) {
+      const errorMsg = ocrResult.ErrorMessage?.[0] || '';
+      
+      // If we got text despite the error (e.g., page limit reached), use it
+      if (extractedText.trim()) {
+        console.warn(`OCR warning (continuing with partial text): ${errorMsg}`);
+      } else {
+        // Only throw if no text was extracted at all
+        throw new Error(errorMsg || 'OCR processing failed');
+      }
+    }
     
     if (!extractedText.trim()) {
       console.warn('No text extracted from document');
