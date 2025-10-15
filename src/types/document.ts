@@ -58,7 +58,7 @@ export const KEYWORD_MATRIX: {
     strong: ["Resume Objective", "Work Experience", "Education", "Skills and Certifications"],
     moderate: ["LinkedIn", "Email:", "Phone:"],
     weak: ["Hobbies and Interests", "Projects"],
-    exclusion: [],
+    exclusion: ["invoice", "statement", "receipt", "tax", "bank", "GSTIN", "PAN", "marks", "grade"],
     exclusionPenalty: 50,
     mandatory: {},
     regional: {}
@@ -67,7 +67,7 @@ export const KEYWORD_MATRIX: {
     strong: ["INDIAN INCOME TAX RETURN", "ITR-1 SAHAJ", "PART A GENERAL INFORMATION"],
     moderate: ["Assessment Year", "PAN", "Verification"],
     weak: ["Deductions", "Income from Salaries"],
-    exclusion: [],
+    exclusion: ["resume", "curriculum vitae", "education", "experience", "skills", "invoice", "bank statement"],
     exclusionPenalty: 50,
     mandatory: {},
     regional: {}
@@ -76,7 +76,7 @@ export const KEYWORD_MATRIX: {
     strong: ["STATEMENT OF ACCOUNT", "Account Number", "Statement Period"],
     moderate: ["Deposit", "Withdrawal", "Balance"],
     weak: ["Transaction Date", "Customer Name"],
-    exclusion: [],
+    exclusion: ["resume", "invoice", "tax return", "marksheet", "grade", "ITR", "GSTIN"],
     exclusionPenalty: 50,
     mandatory: {},
     regional: {}
@@ -85,7 +85,7 @@ export const KEYWORD_MATRIX: {
     strong: ["INVOICE", "Tax Invoice", "GSTIN", "Invoice No."],
     moderate: ["Buyer", "Vendor", "Total Amount", "Terms and Conditions"],
     weak: ["Quantity", "Rate", "Amount"],
-    exclusion: [],
+    exclusion: ["resume", "experience", "education", "bank statement", "marks", "ITR", "assessment year"],
     exclusionPenalty: 50,
     mandatory: {},
     regional: {}
@@ -94,7 +94,7 @@ export const KEYWORD_MATRIX: {
     strong: ["STATEMENT OF MARKS", "BOARD OF SECONDARY EDUCATION", "Division"],
     moderate: ["Subject", "Marks Obtained", "Roll No."],
     weak: ["Total Marks", "Percentage", "Result"],
-    exclusion: [],
+    exclusion: ["invoice", "tax", "salary", "transaction", "experience", "GSTIN", "bank statement"],
     exclusionPenalty: 50,
     mandatory: {},
     regional: {}

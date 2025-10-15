@@ -439,6 +439,7 @@ export const KeywordMatrix = () => {
                   <th className="text-left py-3 px-4 font-semibold">Strong Indicators (+3)</th>
                   <th className="text-left py-3 px-4 font-semibold">Moderate (+2)</th>
                   <th className="text-left py-3 px-4 font-semibold">Weak (+1)</th>
+                  <th className="text-left py-3 px-4 font-semibold">Exclusion Keywords</th>
                 </tr>
               </thead>
               <tbody>
@@ -470,6 +471,18 @@ export const KeywordMatrix = () => {
                             {kw}
                           </Badge>
                         ))}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex flex-wrap gap-1">
+                        {keywords.exclusion?.map((kw) => (
+                          <Badge key={kw} variant="destructive">
+                            {kw}
+                          </Badge>
+                        ))}
+                        {(!keywords.exclusion || keywords.exclusion.length === 0) && (
+                          <span className="text-muted-foreground text-xs">None</span>
+                        )}
                       </div>
                     </td>
                   </tr>
