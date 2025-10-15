@@ -7,6 +7,8 @@ interface FileUploaderProps {
   isProcessing: boolean;
 }
 
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+
 export const FileUploader = ({ onFilesSelected, isProcessing }: FileUploaderProps) => {
   const { toast } = useToast();
 
@@ -34,6 +36,17 @@ export const FileUploader = ({ onFilesSelected, isProcessing }: FileUploaderProp
         toast({
           title: "Invalid files",
           description: "Please upload PDF or image files only",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check file sizes
+      const oversizedFiles = files.filter(file => file.size > MAX_FILE_SIZE);
+      if (oversizedFiles.length > 0) {
+        toast({
+          title: "File too large",
+          description: `Maximum file size is 100MB. ${oversizedFiles[0].name} is ${(oversizedFiles[0].size / 1024 / 1024).toFixed(2)}MB`,
           variant: "destructive",
         });
         return;
@@ -70,6 +83,18 @@ export const FileUploader = ({ onFilesSelected, isProcessing }: FileUploaderProp
       }
 
       const files = Array.from(e.target.files || []);
+      
+      // Check file sizes
+      const oversizedFiles = files.filter(file => file.size > MAX_FILE_SIZE);
+      if (oversizedFiles.length > 0) {
+        toast({
+          title: "File too large",
+          description: `Maximum file size is 100MB. ${oversizedFiles[0].name} is ${(oversizedFiles[0].size / 1024 / 1024).toFixed(2)}MB`,
+          variant: "destructive",
+        });
+        e.target.value = "";
+        return;
+      }
       
       if (files.length > 10) {
         toast({
@@ -117,7 +142,7 @@ export const FileUploader = ({ onFilesSelected, isProcessing }: FileUploaderProp
             />
           </label>
           <p className="text-xs text-muted-foreground mt-2">
-            Maximum 10 files • PDF or Images only
+            Maximum 10 files • PDF or Images only • Max 100MB per file
           </p>
         </div>
       </div>

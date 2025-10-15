@@ -11,92 +11,90 @@ serve(async (req) => {
   }
 
   try {
-    const OCR_API_KEY = Deno.env.get('OCR_SPACE_API_KEY');
-    if (!OCR_API_KEY) {
-      throw new Error('OCR_SPACE_API_KEY not configured');
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY not configured');
     }
 
-    const formData = await req.formData();
-    const file = formData.get('file') as File;
+    const { fileBase64, mimeType } = await req.json();
     
-    if (!file) {
-      throw new Error('No file provided');
+    if (!fileBase64 || !mimeType) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Missing required fields: fileBase64 and mimeType' 
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
-    console.log(`Processing file: ${file.name}, size: ${file.size} bytes`);
+    console.log(`Processing file with mime type: ${mimeType}`);
 
-    // Convert file to base64 (chunk-based to avoid stack overflow on large files)
-    const bytes = await file.arrayBuffer();
-    const uint8Array = new Uint8Array(bytes);
-    let binary = '';
-    const chunkSize = 8192;
-    for (let i = 0; i < uint8Array.length; i += chunkSize) {
-      const chunk = uint8Array.slice(i, i + chunkSize);
-      binary += String.fromCharCode.apply(null, Array.from(chunk));
-    }
-    const base64 = btoa(binary);
-    
-    // Call OCR.Space API
-    const ocrFormData = new FormData();
-    ocrFormData.append('base64Image', `data:${file.type};base64,${base64}`);
-    ocrFormData.append('apikey', OCR_API_KEY);
-    ocrFormData.append('language', 'eng');
-    ocrFormData.append('isOverlayRequired', 'false');
-    ocrFormData.append('detectOrientation', 'true');
-    ocrFormData.append('scale', 'true');
-    ocrFormData.append('OCREngine', '2');
-
-    console.log('Calling OCR.Space API...');
-    
-    const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
-      method: 'POST',
-      body: ocrFormData,
-    });
-
-    if (!ocrResponse.ok) {
-      const errorText = await ocrResponse.text();
-      console.error('OCR API error:', ocrResponse.status, errorText);
-      throw new Error(`OCR API error: ${ocrResponse.status}`);
-    }
-
-    const ocrResult = await ocrResponse.json();
-    console.log('OCR result:', JSON.stringify(ocrResult).substring(0, 200));
-
-    const extractedText = ocrResult.ParsedResults?.[0]?.ParsedText || '';
-    
-    // Handle page limit warnings (OCR.Space has 3-page limit for PDFs)
-    if (ocrResult.IsErroredOnProcessing) {
-      const errorMsg = ocrResult.ErrorMessage?.[0] || '';
-      
-      // If we got text despite the error (e.g., page limit reached), use it
-      if (extractedText.trim()) {
-        console.warn(`OCR warning (continuing with partial text): ${errorMsg}`);
-      } else {
-        // Only throw if no text was extracted at all
-        throw new Error(errorMsg || 'OCR processing failed');
+    // Use Gemini Vision API for OCR
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              {
+                text: "Extract all text from this document. Return the complete text content without any formatting, explanations, or additional commentary. Just the raw extracted text."
+              },
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: fileBase64
+                }
+              }
+            ]
+          }],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 8192,
+          }
+        }),
       }
+    );
+
+    if (!geminiResponse.ok) {
+      const errorText = await geminiResponse.text();
+      console.error('Gemini API error:', geminiResponse.status, errorText);
+      throw new Error(`Gemini API error: ${geminiResponse.status}`);
     }
+
+    const geminiResult = await geminiResponse.json();
+    const extractedText = geminiResult.candidates?.[0]?.content?.parts?.[0]?.text;
     
-    if (!extractedText.trim()) {
-      console.warn('No text extracted from document');
+    if (!extractedText) {
+      throw new Error('No text extracted from document');
     }
+
+    console.log(`Successfully extracted ${extractedText.length} characters`);
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
+        success: true,
         text: extractedText,
-        success: true 
+        parsedText: extractedText
       }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Error in ocr-extract:', error);
     return new Response(
       JSON.stringify({ 
+        success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
-        success: false 
+        text: '',
+        parsedText: ''
       }),
       { 
         status: 500,
