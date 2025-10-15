@@ -60,8 +60,12 @@ export type Database = {
         Row: {
           created_at: string
           doc_type: string
+          exclusion_keywords: string[] | null
+          exclusion_penalty_percentage: number | null
           id: string
+          mandatory_fields: Json | null
           moderate_keywords: string[]
+          regional_keywords: Json | null
           strong_keywords: string[]
           updated_at: string
           user_id: string
@@ -70,8 +74,12 @@ export type Database = {
         Insert: {
           created_at?: string
           doc_type: string
+          exclusion_keywords?: string[] | null
+          exclusion_penalty_percentage?: number | null
           id?: string
+          mandatory_fields?: Json | null
           moderate_keywords?: string[]
+          regional_keywords?: Json | null
           strong_keywords?: string[]
           updated_at?: string
           user_id: string
@@ -80,8 +88,12 @@ export type Database = {
         Update: {
           created_at?: string
           doc_type?: string
+          exclusion_keywords?: string[] | null
+          exclusion_penalty_percentage?: number | null
           id?: string
+          mandatory_fields?: Json | null
           moderate_keywords?: string[]
+          regional_keywords?: Json | null
           strong_keywords?: string[]
           updated_at?: string
           user_id?: string

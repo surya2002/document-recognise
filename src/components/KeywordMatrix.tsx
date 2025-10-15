@@ -46,7 +46,11 @@ export const KeywordMatrix = () => {
           loadedMatrix[row.doc_type] = {
             strong: row.strong_keywords || [],
             moderate: row.moderate_keywords || [],
-            weak: row.weak_keywords || []
+            weak: row.weak_keywords || [],
+            exclusion: row.exclusion_keywords || [],
+            exclusionPenalty: row.exclusion_penalty_percentage || 50,
+            mandatory: row.mandatory_fields || {},
+            regional: row.regional_keywords || {}
           };
         });
         setEditedMatrix(loadedMatrix);
@@ -96,7 +100,11 @@ export const KeywordMatrix = () => {
       [newDocType]: {
         strong: [],
         moderate: [],
-        weak: []
+        weak: [],
+        exclusion: [],
+        exclusionPenalty: 50,
+        mandatory: {},
+        regional: {}
       }
     }));
     setNewDocType("");
@@ -125,22 +133,30 @@ export const KeywordMatrix = () => {
           {
             strong: keywords.strong.filter(kw => kw.trim() !== ''),
             moderate: keywords.moderate.filter(kw => kw.trim() !== ''),
-            weak: keywords.weak.filter(kw => kw.trim() !== '')
+            weak: keywords.weak.filter(kw => kw.trim() !== ''),
+            exclusion: (keywords.exclusion || []).filter(kw => kw.trim() !== ''),
+            exclusionPenalty: keywords.exclusionPenalty || 50,
+            mandatory: keywords.mandatory || {},
+            regional: keywords.regional || {}
           }
         ])
-      ) as typeof KEYWORD_MATRIX;
+      ) as any;
 
       await supabase
         .from('keyword_matrix')
         .delete()
         .eq('user_id', user.id);
 
-      const insertData = Object.entries(cleanedMatrix).map(([docType, keywords]) => ({
+      const insertData = Object.entries(cleanedMatrix).map(([docType, keywords]: [string, any]) => ({
         user_id: user.id,
         doc_type: docType,
         strong_keywords: keywords.strong,
         moderate_keywords: keywords.moderate,
-        weak_keywords: keywords.weak
+        weak_keywords: keywords.weak,
+        exclusion_keywords: keywords.exclusion || [],
+        exclusion_penalty_percentage: keywords.exclusionPenalty || 50,
+        mandatory_fields: keywords.mandatory || {},
+        regional_keywords: keywords.regional || {}
       }));
 
       const { error } = await supabase
@@ -308,6 +324,87 @@ export const KeywordMatrix = () => {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => handleRemoveKeyword(docType as keyof typeof KEYWORD_MATRIX, 'weak', idx)}
+                                className="flex-shrink-0"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Exclusion Keywords */}
+                      <div className="border-t pt-3 mt-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <Label className="text-destructive">Exclusion Keywords</Label>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {(keywords as any).exclusionPenalty || 50}% penalty per keyword
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={(keywords as any).exclusionPenalty || 50}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value) || 50;
+                                setEditedMatrix(prev => ({
+                                  ...prev,
+                                  [docType]: { ...prev[docType], exclusionPenalty: val }
+                                }));
+                              }}
+                              className="w-20"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditedMatrix(prev => ({
+                                  ...prev,
+                                  [docType]: {
+                                    ...prev[docType],
+                                    exclusion: [...((prev[docType] as any).exclusion || []), '']
+                                  }
+                                }));
+                              }}
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Add
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          {((keywords as any).exclusion || []).map((kw: string, idx: number) => (
+                            <div key={idx} className="flex gap-2">
+                              <Input
+                                value={kw}
+                                onChange={(e) => {
+                                  setEditedMatrix(prev => ({
+                                    ...prev,
+                                    [docType]: {
+                                      ...prev[docType],
+                                      exclusion: ((prev[docType] as any).exclusion || []).map((k: string, i: number) =>
+                                        i === idx ? e.target.value : k
+                                      )
+                                    }
+                                  }));
+                                }}
+                                placeholder="Enter exclusion keyword..."
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setEditedMatrix(prev => ({
+                                    ...prev,
+                                    [docType]: {
+                                      ...prev[docType],
+                                      exclusion: ((prev[docType] as any).exclusion || []).filter((_: string, i: number) => i !== idx)
+                                    }
+                                  }));
+                                }}
                                 className="flex-shrink-0"
                               >
                                 <X className="h-4 w-4" />
