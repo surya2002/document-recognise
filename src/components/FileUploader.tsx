@@ -7,7 +7,8 @@ interface FileUploaderProps {
   isProcessing: boolean;
 }
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB (Google Vision API limit)
+const MAX_FILES = 16; // Google Vision API limit
 
 export const FileUploader = ({ onFilesSelected, isProcessing }: FileUploaderProps) => {
   const { toast } = useToast();
@@ -46,16 +47,16 @@ export const FileUploader = ({ onFilesSelected, isProcessing }: FileUploaderProp
       if (oversizedFiles.length > 0) {
         toast({
           title: "File too large",
-          description: `Maximum file size is 100MB. ${oversizedFiles[0].name} is ${(oversizedFiles[0].size / 1024 / 1024).toFixed(2)}MB`,
+          description: `Maximum file size is 20MB (Google Vision API limit). ${oversizedFiles[0].name} is ${(oversizedFiles[0].size / 1024 / 1024).toFixed(2)}MB`,
           variant: "destructive",
         });
         return;
       }
 
-      if (files.length > 10) {
+      if (files.length > MAX_FILES) {
         toast({
           title: "Too many files",
-          description: "Maximum 10 files allowed at once",
+          description: `Maximum ${MAX_FILES} files allowed at once (Google Vision API limit)`,
           variant: "destructive",
         });
         return;
@@ -89,17 +90,17 @@ export const FileUploader = ({ onFilesSelected, isProcessing }: FileUploaderProp
       if (oversizedFiles.length > 0) {
         toast({
           title: "File too large",
-          description: `Maximum file size is 100MB. ${oversizedFiles[0].name} is ${(oversizedFiles[0].size / 1024 / 1024).toFixed(2)}MB`,
+          description: `Maximum file size is 20MB (Google Vision API limit). ${oversizedFiles[0].name} is ${(oversizedFiles[0].size / 1024 / 1024).toFixed(2)}MB`,
           variant: "destructive",
         });
         e.target.value = "";
         return;
       }
       
-      if (files.length > 10) {
+      if (files.length > MAX_FILES) {
         toast({
           title: "Too many files",
-          description: "Maximum 10 files allowed at once",
+          description: `Maximum ${MAX_FILES} files allowed at once (Google Vision API limit)`,
           variant: "destructive",
         });
         return;
@@ -142,7 +143,10 @@ export const FileUploader = ({ onFilesSelected, isProcessing }: FileUploaderProp
             />
           </label>
           <p className="text-xs text-muted-foreground mt-2">
-            Maximum 10 files • PDF or Images only • Max 100MB per file
+            Maximum 16 files • PDF or Images only • Max 20MB per file
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Powered by Google Vision API
           </p>
         </div>
       </div>
