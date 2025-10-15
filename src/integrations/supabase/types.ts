@@ -56,6 +56,39 @@ export type Database = {
         }
         Relationships: []
       }
+      keyword_matrix: {
+        Row: {
+          created_at: string
+          doc_type: string
+          id: string
+          moderate_keywords: string[]
+          strong_keywords: string[]
+          updated_at: string
+          user_id: string
+          weak_keywords: string[]
+        }
+        Insert: {
+          created_at?: string
+          doc_type: string
+          id?: string
+          moderate_keywords?: string[]
+          strong_keywords?: string[]
+          updated_at?: string
+          user_id: string
+          weak_keywords?: string[]
+        }
+        Update: {
+          created_at?: string
+          doc_type?: string
+          id?: string
+          moderate_keywords?: string[]
+          strong_keywords?: string[]
+          updated_at?: string
+          user_id?: string
+          weak_keywords?: string[]
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

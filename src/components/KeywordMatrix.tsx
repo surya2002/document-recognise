@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { KEYWORD_MATRIX } from "@/types/document";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,12 +14,47 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export const KeywordMatrix = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editedMatrix, setEditedMatrix] = useState(KEYWORD_MATRIX);
   const [newDocType, setNewDocType] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    loadKeywordMatrix();
+  }, []);
+
+  const loadKeywordMatrix = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('keyword_matrix')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const loadedMatrix: any = {};
+        data.forEach(row => {
+          loadedMatrix[row.doc_type] = {
+            strong: row.strong_keywords || [],
+            moderate: row.moderate_keywords || [],
+            weak: row.weak_keywords || []
+          };
+        });
+        setEditedMatrix(loadedMatrix);
+      }
+    } catch (error) {
+      console.error('Error loading keyword matrix:', error);
+    }
+  };
 
   const handleKeywordChange = (docType: keyof typeof KEYWORD_MATRIX, level: 'strong' | 'moderate' | 'weak', index: number, value: string) => {
     setEditedMatrix(prev => ({
@@ -75,21 +110,55 @@ export const KeywordMatrix = () => {
     });
   };
 
-  const handleSave = () => {
-    // Filter out empty keywords before saving
-    const cleanedMatrix = Object.fromEntries(
-      Object.entries(editedMatrix).map(([docType, keywords]) => [
-        docType,
-        {
-          strong: keywords.strong.filter(kw => kw.trim() !== ''),
-          moderate: keywords.moderate.filter(kw => kw.trim() !== ''),
-          weak: keywords.weak.filter(kw => kw.trim() !== '')
-        }
-      ])
-    ) as typeof KEYWORD_MATRIX;
-    
-    Object.assign(KEYWORD_MATRIX, cleanedMatrix);
-    setIsEditOpen(false);
+  const handleSave = async () => {
+    setIsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("You must be logged in to save keyword matrix");
+        return;
+      }
+
+      const cleanedMatrix = Object.fromEntries(
+        Object.entries(editedMatrix).map(([docType, keywords]) => [
+          docType,
+          {
+            strong: keywords.strong.filter(kw => kw.trim() !== ''),
+            moderate: keywords.moderate.filter(kw => kw.trim() !== ''),
+            weak: keywords.weak.filter(kw => kw.trim() !== '')
+          }
+        ])
+      ) as typeof KEYWORD_MATRIX;
+
+      await supabase
+        .from('keyword_matrix')
+        .delete()
+        .eq('user_id', user.id);
+
+      const insertData = Object.entries(cleanedMatrix).map(([docType, keywords]) => ({
+        user_id: user.id,
+        doc_type: docType,
+        strong_keywords: keywords.strong,
+        moderate_keywords: keywords.moderate,
+        weak_keywords: keywords.weak
+      }));
+
+      const { error } = await supabase
+        .from('keyword_matrix')
+        .insert(insertData);
+
+      if (error) throw error;
+
+      Object.assign(KEYWORD_MATRIX, cleanedMatrix);
+      
+      toast.success("Keyword matrix saved successfully");
+      setIsEditOpen(false);
+    } catch (error) {
+      console.error('Error saving keyword matrix:', error);
+      toast.error("Failed to save keyword matrix");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -252,11 +321,11 @@ export const KeywordMatrix = () => {
                 ))}
               </div>
               <div className="flex justify-end gap-2 mt-4">
-                <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+                <Button variant="outline" onClick={() => setIsEditOpen(false)} disabled={isLoading}>
                   Cancel
                 </Button>
-                <Button onClick={handleSave}>
-                  Save Changes
+                <Button onClick={handleSave} disabled={isLoading}>
+                  {isLoading ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
             </DialogContent>

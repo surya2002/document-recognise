@@ -1,39 +1,33 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const CLASSIFICATION_PROMPT = `You are a document type classifier.
-Analyze this OCR text and output normalized confidence scores for the following types using this weighted keyword matrix:
+function buildClassificationPrompt(keywordMatrix: any): string {
+  let prompt = `You are a document type classifier.
+Analyze this OCR text and output normalized confidence scores for the following types using this weighted keyword matrix:\n\n`;
 
-Resume:
-- Strong (+3): Resume Objective, Work Experience, Education, Skills and Certifications
-- Moderate (+2): LinkedIn, Email:, Phone:
-- Weak (+1): Hobbies and Interests, Projects
+  // Build keyword matrix section dynamically
+  for (const [docType, keywords] of Object.entries(keywordMatrix)) {
+    const kw = keywords as any;
+    prompt += `${docType}:\n`;
+    
+    if (kw.strong && kw.strong.length > 0) {
+      prompt += `- Strong (+3): ${kw.strong.join(', ')}\n`;
+    }
+    if (kw.moderate && kw.moderate.length > 0) {
+      prompt += `- Moderate (+2): ${kw.moderate.join(', ')}\n`;
+    }
+    if (kw.weak && kw.weak.length > 0) {
+      prompt += `- Weak (+1): ${kw.weak.join(', ')}\n`;
+    }
+    prompt += '\n';
+  }
 
-ITR:
-- Strong (+3): INDIAN INCOME TAX RETURN, ITR-1 SAHAJ, PART A GENERAL INFORMATION
-- Moderate (+2): Assessment Year, PAN, Verification
-- Weak (+1): Deductions, Income from Salaries
-
-Bank Statement:
-- Strong (+3): STATEMENT OF ACCOUNT, Account Number, Statement Period
-- Moderate (+2): Deposit, Withdrawal, Balance
-- Weak (+1): Transaction Date, Customer Name
-
-Invoice:
-- Strong (+3): INVOICE, Tax Invoice, GSTIN, Invoice No.
-- Moderate (+2): Buyer, Vendor, Total Amount, Terms and Conditions
-- Weak (+1): Quantity, Rate, Amount
-
-Marksheet:
-- Strong (+3): STATEMENT OF MARKS, BOARD OF SECONDARY EDUCATION, Division
-- Moderate (+2): Subject, Marks Obtained, Roll No.
-- Weak (+1): Total Marks, Percentage, Result
-
-Assign +3 for strong, +2 for moderate, +1 for weak indicators. Ignore generic words like Name, Date, Address. Return results as normalized confidence scores (summing to 100%). If all document types <40% confidence, classify as Unknown.
+  prompt += `Assign +3 for strong, +2 for moderate, +1 for weak indicators. Ignore generic words like Name, Date, Address. Return results as normalized confidence scores (summing to 100%). If all document types <40% confidence, classify as Unknown.
 
 Return ONLY valid JSON in this exact format:
 {
@@ -46,6 +40,9 @@ Return ONLY valid JSON in this exact format:
   "reasoning": "High presence of tax and vendor identifiers."
 }`;
 
+  return prompt;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -53,11 +50,66 @@ serve(async (req) => {
 
   try {
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
     if (!GEMINI_API_KEY) {
       throw new Error('GEMINI_API_KEY not configured');
     }
 
-    const { ocrText } = await req.json();
+    const { ocrText, userId } = await req.json();
+
+    // Fetch user's custom keyword matrix from database
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+    const { data: matrixData, error: matrixError } = await supabase
+      .from('keyword_matrix')
+      .select('*')
+      .eq('user_id', userId);
+
+    let keywordMatrix: any = {
+      "Resume": {
+        "strong": ["Resume Objective", "Work Experience", "Education", "Skills and Certifications"],
+        "moderate": ["LinkedIn", "Email:", "Phone:"],
+        "weak": ["Hobbies and Interests", "Projects"]
+      },
+      "ITR": {
+        "strong": ["INDIAN INCOME TAX RETURN", "ITR-1 SAHAJ", "PART A GENERAL INFORMATION"],
+        "moderate": ["Assessment Year", "PAN", "Verification"],
+        "weak": ["Deductions", "Income from Salaries"]
+      },
+      "Bank Statement": {
+        "strong": ["STATEMENT OF ACCOUNT", "Account Number", "Statement Period"],
+        "moderate": ["Deposit", "Withdrawal", "Balance"],
+        "weak": ["Transaction Date", "Customer Name"]
+      },
+      "Invoice": {
+        "strong": ["INVOICE", "Tax Invoice", "GSTIN", "Invoice No."],
+        "moderate": ["Buyer", "Vendor", "Total Amount", "Terms and Conditions"],
+        "weak": ["Quantity", "Rate", "Amount"]
+      },
+      "Marksheet": {
+        "strong": ["STATEMENT OF MARKS", "BOARD OF SECONDARY EDUCATION", "Division"],
+        "moderate": ["Subject", "Marks Obtained", "Roll No."],
+        "weak": ["Total Marks", "Percentage", "Result"]
+      }
+    };
+
+    // Use custom matrix if available
+    if (matrixData && matrixData.length > 0) {
+      keywordMatrix = {};
+      matrixData.forEach((row: any) => {
+        keywordMatrix[row.doc_type] = {
+          strong: row.strong_keywords || [],
+          moderate: row.moderate_keywords || [],
+          weak: row.weak_keywords || []
+        };
+      });
+      console.log('Using custom keyword matrix for user:', userId);
+    } else {
+      console.log('Using default keyword matrix');
+    }
+
+    const CLASSIFICATION_PROMPT = buildClassificationPrompt(keywordMatrix);
     
     if (!ocrText || !ocrText.trim()) {
       return new Response(

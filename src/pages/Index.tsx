@@ -268,7 +268,10 @@ const Index = () => {
         .eq('id', dbDoc.id);
 
       const { data: classifyData, error: classifyError } = await supabase.functions.invoke('classify-document', {
-        body: { ocrText }
+        body: { 
+          ocrText,
+          userId: user.id
+        }
       });
 
       if (classifyError) {
