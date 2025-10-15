@@ -343,18 +343,31 @@ serve(async (req) => {
 
     const CLASSIFICATION_PROMPT = buildAdvancedClassificationPrompt(keywordMatrix);
     
+    // Validate text content before classification
     if (!ocrText || !ocrText.trim()) {
       return new Response(
         JSON.stringify({
-          probable_type: "Unknown",
-          confidence_percentage: 0,
-          keywords_detected: [],
-          reasoning: "No text content found in document",
-          validation_status: "FAILED",
-          text_quality: "poor",
-          text_length: 0
+          success: false,
+          error: 'No text content found in document'
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // Check for minimum meaningful content
+    if (ocrText.trim().length < 10) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Insufficient text content for classification'
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
       );
     }
 

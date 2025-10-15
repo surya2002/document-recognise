@@ -255,16 +255,22 @@ const Index = () => {
       if (ocrError || !ocrData?.success) {
         const errorMsg = ocrData?.error || ocrError?.message || 'OCR extraction failed';
         
+        // Provide more specific user guidance for empty document errors
+        let userMessage = errorMsg;
+        if (errorMsg.includes('No text content') || errorMsg.includes('insufficient text')) {
+          userMessage = 'This document appears to be empty or contains no readable text. Please ensure your PDF has text content.';
+        }
+        
         // Update database with error state
         await supabase
           .from('documents')
           .update({
             status: 'error',
-            error: errorMsg
+            error: userMessage
           })
           .eq('id', dbDoc.id);
         
-        throw new Error(errorMsg);
+        throw new Error(userMessage);
       }
 
       const ocrText = ocrData.text;

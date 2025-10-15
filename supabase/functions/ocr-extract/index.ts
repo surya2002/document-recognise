@@ -76,6 +76,16 @@ serve(async (req) => {
       throw new Error('No text extracted from document');
     }
 
+    // Check if text exists and has meaningful content
+    if (extractedText.trim().length === 0) {
+      throw new Error('No text content found in the document. The file may be empty or contain only images without text.');
+    }
+
+    // Check for minimum meaningful content (at least 10 characters after trimming)
+    if (extractedText.trim().length < 10) {
+      throw new Error('Document contains insufficient text content (less than 10 characters). Please upload a document with readable text.');
+    }
+
     console.log(`Successfully extracted ${extractedText.length} characters`);
 
     return new Response(
