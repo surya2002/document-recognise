@@ -7,8 +7,8 @@ interface FileUploaderProps {
   isProcessing: boolean;
 }
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB (Google Vision API limit)
-const MAX_FILES = 16; // Google Vision API limit
+const MAX_FILE_SIZE = 7 * 1024 * 1024; // 7MB (Gemini Vision API limit)
+const MAX_FILES = 100; // Practical UI limit (Gemini supports up to 3,000)
 
 export const FileUploader = ({ onFilesSelected, isProcessing }: FileUploaderProps) => {
   const { toast } = useToast();
@@ -47,7 +47,7 @@ export const FileUploader = ({ onFilesSelected, isProcessing }: FileUploaderProp
       if (oversizedFiles.length > 0) {
         toast({
           title: "File too large",
-          description: `Maximum file size is 20MB (Google Vision API limit). ${oversizedFiles[0].name} is ${(oversizedFiles[0].size / 1024 / 1024).toFixed(2)}MB`,
+          description: `Maximum file size is 7MB (Gemini Vision API limit). ${oversizedFiles[0].name} is ${(oversizedFiles[0].size / 1024 / 1024).toFixed(2)}MB`,
           variant: "destructive",
         });
         return;
@@ -56,7 +56,7 @@ export const FileUploader = ({ onFilesSelected, isProcessing }: FileUploaderProp
       if (files.length > MAX_FILES) {
         toast({
           title: "Too many files",
-          description: `Maximum ${MAX_FILES} files allowed at once (Google Vision API limit)`,
+          description: `Maximum ${MAX_FILES} files allowed at once (UI limit for optimal performance)`,
           variant: "destructive",
         });
         return;
@@ -90,7 +90,7 @@ export const FileUploader = ({ onFilesSelected, isProcessing }: FileUploaderProp
       if (oversizedFiles.length > 0) {
         toast({
           title: "File too large",
-          description: `Maximum file size is 20MB (Google Vision API limit). ${oversizedFiles[0].name} is ${(oversizedFiles[0].size / 1024 / 1024).toFixed(2)}MB`,
+          description: `Maximum file size is 7MB (Gemini Vision API limit). ${oversizedFiles[0].name} is ${(oversizedFiles[0].size / 1024 / 1024).toFixed(2)}MB`,
           variant: "destructive",
         });
         e.target.value = "";
@@ -100,7 +100,7 @@ export const FileUploader = ({ onFilesSelected, isProcessing }: FileUploaderProp
       if (files.length > MAX_FILES) {
         toast({
           title: "Too many files",
-          description: `Maximum ${MAX_FILES} files allowed at once (Google Vision API limit)`,
+          description: `Maximum ${MAX_FILES} files allowed at once (UI limit for optimal performance)`,
           variant: "destructive",
         });
         return;
@@ -143,10 +143,10 @@ export const FileUploader = ({ onFilesSelected, isProcessing }: FileUploaderProp
             />
           </label>
           <p className="text-xs text-muted-foreground mt-2">
-            Maximum 16 files • PDF or Images only • Max 20MB per file
+            Maximum 100 files • PDF or Images only • Max 7MB per file
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Powered by Google Vision API
+            Powered by Gemini Vision AI
           </p>
         </div>
       </div>
