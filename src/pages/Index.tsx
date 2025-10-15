@@ -234,11 +234,22 @@ const Index = () => {
         .update({ status: 'ocr' })
         .eq('id', dbDoc.id);
 
-      const formData = new FormData();
-      formData.append('file', file);
+      // Convert file to base64 for Gemini Vision API
+      const fileBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
 
       const { data: ocrData, error: ocrError } = await supabase.functions.invoke('ocr-extract', {
-        body: formData
+        body: { 
+          fileBase64,
+          mimeType: file.type
+        }
       });
 
       if (ocrError || !ocrData?.success) {
