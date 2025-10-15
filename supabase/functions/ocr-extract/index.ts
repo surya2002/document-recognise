@@ -66,6 +66,14 @@ serve(async (req) => {
     if (!geminiResponse.ok) {
       const errorText = await geminiResponse.text();
       console.error('Gemini API error:', geminiResponse.status, errorText);
+      
+      // Check for password-protected or corrupted documents
+      if (errorText.includes('The document has no pages') || 
+          errorText.includes('INVALID_ARGUMENT') ||
+          errorText.includes('encrypted')) {
+        throw new Error('This document appears to be password-protected or corrupted. Please remove any password protection and try again.');
+      }
+      
       throw new Error(`Gemini API error: ${geminiResponse.status}`);
     }
 

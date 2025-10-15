@@ -146,6 +146,9 @@ export const FileUploader = ({ onFilesSelected, isProcessing }: FileUploaderProp
             Maximum 100 files • PDF or Images only • Max 7MB per file
           </p>
           <p className="text-xs text-muted-foreground mt-1">
+            ⚠️ Password-protected PDFs are not supported. Please remove passwords before uploading.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
             Powered by Gemini Vision AI
           </p>
         </div>

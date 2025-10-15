@@ -255,10 +255,12 @@ const Index = () => {
       if (ocrError || !ocrData?.success) {
         const errorMsg = ocrData?.error || ocrError?.message || 'OCR extraction failed';
         
-        // Provide more specific user guidance for empty document errors
+        // Provide more specific user guidance for different error types
         let userMessage = errorMsg;
         if (errorMsg.includes('No text content') || errorMsg.includes('insufficient text')) {
           userMessage = 'This document appears to be empty or contains no readable text. Please ensure your PDF has text content.';
+        } else if (errorMsg.includes('password-protected') || errorMsg.includes('encrypted')) {
+          userMessage = 'This document is password-protected. Please remove the password and try again.';
         }
         
         // Update database with error state
