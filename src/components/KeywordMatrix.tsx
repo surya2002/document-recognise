@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { KEYWORD_MATRIX } from "@/types/document";
+import { KEYWORD_MATRIX, KeywordWithMultipliers } from "@/types/document";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,10 +50,7 @@ export const KeywordMatrix = () => {
             exclusion: row.exclusion_keywords || [],
             exclusionPenalty: row.exclusion_penalty_percentage || 50,
             mandatory: row.mandatory_fields || {},
-            regional: row.regional_keywords || {},
-            headerMultiplier: row.header_multiplier || 1.2,
-            bodyMultiplier: row.body_multiplier || 1.0,
-            footerMultiplier: row.footer_multiplier || 0.8
+            regional: row.regional_keywords || {}
           };
         });
         setEditedMatrix(loadedMatrix);
@@ -63,24 +60,36 @@ export const KeywordMatrix = () => {
     }
   };
 
-  const handleKeywordChange = (docType: keyof typeof KEYWORD_MATRIX, level: 'strong' | 'moderate' | 'weak', index: number, value: string) => {
+  const handleKeywordChange = (
+    docType: keyof typeof KEYWORD_MATRIX,
+    level: 'strong' | 'moderate' | 'weak',
+    index: number,
+    field: 'keyword' | 'headerMult' | 'bodyMult' | 'footerMult',
+    value: string | number
+  ) => {
     setEditedMatrix(prev => ({
       ...prev,
       [docType]: {
         ...prev[docType],
         [level]: prev[docType][level].map((kw, i) => 
-          i === index ? value : kw
+          i === index ? { ...kw, [field]: value } : kw
         )
       }
     }));
   };
 
   const handleAddKeyword = (docType: keyof typeof KEYWORD_MATRIX, level: 'strong' | 'moderate' | 'weak') => {
+    const newKeyword: KeywordWithMultipliers = {
+      keyword: '',
+      headerMult: 1.2,
+      bodyMult: 1.0,
+      footerMult: 0.8
+    };
     setEditedMatrix(prev => ({
       ...prev,
       [docType]: {
         ...prev[docType],
-        [level]: [...prev[docType][level], '']
+        [level]: [...prev[docType][level], newKeyword]
       }
     }));
   };
@@ -107,10 +116,7 @@ export const KeywordMatrix = () => {
         exclusion: [],
         exclusionPenalty: 50,
         mandatory: {},
-        regional: {},
-        headerMultiplier: 1.2,
-        bodyMultiplier: 1.0,
-        footerMultiplier: 0.8
+        regional: {}
       }
     }));
     setNewDocType("");
@@ -133,29 +139,29 @@ export const KeywordMatrix = () => {
         return;
       }
 
+      // Clean up and validate data
       const cleanedMatrix = Object.fromEntries(
         Object.entries(editedMatrix).map(([docType, keywords]) => [
           docType,
           {
-            strong: keywords.strong.filter(kw => kw.trim() !== ''),
-            moderate: keywords.moderate.filter(kw => kw.trim() !== ''),
-            weak: keywords.weak.filter(kw => kw.trim() !== ''),
+            strong: keywords.strong.filter((kw: KeywordWithMultipliers) => kw.keyword.trim() !== ''),
+            moderate: keywords.moderate.filter((kw: KeywordWithMultipliers) => kw.keyword.trim() !== ''),
+            weak: keywords.weak.filter((kw: KeywordWithMultipliers) => kw.keyword.trim() !== ''),
             exclusion: (keywords.exclusion || []).filter(kw => kw.trim() !== ''),
             exclusionPenalty: keywords.exclusionPenalty || 50,
             mandatory: keywords.mandatory || {},
-            regional: keywords.regional || {},
-            headerMultiplier: keywords.headerMultiplier || 1.2,
-            bodyMultiplier: keywords.bodyMultiplier || 1.0,
-            footerMultiplier: keywords.footerMultiplier || 0.8
+            regional: keywords.regional || {}
           }
         ])
       ) as any;
 
+      // Delete existing data
       await supabase
         .from('keyword_matrix')
         .delete()
         .eq('user_id', user.id);
 
+      // Insert new data
       const insertData = Object.entries(cleanedMatrix).map(([docType, keywords]: [string, any]) => ({
         user_id: user.id,
         doc_type: docType,
@@ -165,10 +171,7 @@ export const KeywordMatrix = () => {
         exclusion_keywords: keywords.exclusion || [],
         exclusion_penalty_percentage: keywords.exclusionPenalty || 50,
         mandatory_fields: keywords.mandatory || {},
-        regional_keywords: keywords.regional || {},
-        header_multiplier: keywords.headerMultiplier || 1.2,
-        body_multiplier: keywords.bodyMultiplier || 1.0,
-        footer_multiplier: keywords.footerMultiplier || 0.8
+        regional_keywords: keywords.regional || {}
       }));
 
       const { error } = await supabase
@@ -177,6 +180,7 @@ export const KeywordMatrix = () => {
 
       if (error) throw error;
 
+      // Update in-memory matrix
       Object.assign(KEYWORD_MATRIX, cleanedMatrix);
       
       toast.success("Keyword matrix saved successfully");
@@ -204,11 +208,11 @@ export const KeywordMatrix = () => {
                 Edit Matrix
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Edit Keyword Matrix</DialogTitle>
                 <DialogDescription>
-                  Customize the keywords used for document classification. Use + to add indicators and X to remove them.
+                  Customize keywords and their position multipliers. Each keyword can have different weights in header, body, and footer regions.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-6">
@@ -257,12 +261,47 @@ export const KeywordMatrix = () => {
                           </Button>
                         </div>
                         <div className="space-y-2">
+                          {/* Column Headers */}
+                          <div className="grid grid-cols-[1fr_80px_80px_80px_40px] gap-2 text-xs text-muted-foreground font-medium px-2">
+                            <div>Keyword</div>
+                            <div>Header</div>
+                            <div>Body</div>
+                            <div>Footer</div>
+                            <div></div>
+                          </div>
                           {keywords.strong.map((kw, idx) => (
-                            <div key={idx} className="flex gap-2">
+                            <div key={idx} className="grid grid-cols-[1fr_80px_80px_80px_40px] gap-2">
                               <Input
-                                value={kw}
-                                onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'strong', idx, e.target.value)}
-                                placeholder="Enter keyword..."
+                                value={kw.keyword}
+                                onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'strong', idx, 'keyword', e.target.value)}
+                                placeholder="Keyword..."
+                              />
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="3"
+                                value={kw.headerMult}
+                                onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'strong', idx, 'headerMult', parseFloat(e.target.value) || 1.2)}
+                                className={kw.headerMult > 1 ? 'border-green-500' : kw.headerMult < 1 ? 'border-red-500' : ''}
+                              />
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="3"
+                                value={kw.bodyMult}
+                                onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'strong', idx, 'bodyMult', parseFloat(e.target.value) || 1.0)}
+                                className={kw.bodyMult > 1 ? 'border-green-500' : kw.bodyMult < 1 ? 'border-red-500' : ''}
+                              />
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="3"
+                                value={kw.footerMult}
+                                onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'strong', idx, 'footerMult', parseFloat(e.target.value) || 0.8)}
+                                className={kw.footerMult > 1 ? 'border-green-500' : kw.footerMult < 1 ? 'border-red-500' : ''}
                               />
                               <Button
                                 variant="ghost"
@@ -291,12 +330,47 @@ export const KeywordMatrix = () => {
                           </Button>
                         </div>
                         <div className="space-y-2">
+                          {/* Column Headers */}
+                          <div className="grid grid-cols-[1fr_80px_80px_80px_40px] gap-2 text-xs text-muted-foreground font-medium px-2">
+                            <div>Keyword</div>
+                            <div>Header</div>
+                            <div>Body</div>
+                            <div>Footer</div>
+                            <div></div>
+                          </div>
                           {keywords.moderate.map((kw, idx) => (
-                            <div key={idx} className="flex gap-2">
+                            <div key={idx} className="grid grid-cols-[1fr_80px_80px_80px_40px] gap-2">
                               <Input
-                                value={kw}
-                                onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'moderate', idx, e.target.value)}
-                                placeholder="Enter keyword..."
+                                value={kw.keyword}
+                                onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'moderate', idx, 'keyword', e.target.value)}
+                                placeholder="Keyword..."
+                              />
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="3"
+                                value={kw.headerMult}
+                                onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'moderate', idx, 'headerMult', parseFloat(e.target.value) || 1.2)}
+                                className={kw.headerMult > 1 ? 'border-green-500' : kw.headerMult < 1 ? 'border-red-500' : ''}
+                              />
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="3"
+                                value={kw.bodyMult}
+                                onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'moderate', idx, 'bodyMult', parseFloat(e.target.value) || 1.0)}
+                                className={kw.bodyMult > 1 ? 'border-green-500' : kw.bodyMult < 1 ? 'border-red-500' : ''}
+                              />
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="3"
+                                value={kw.footerMult}
+                                onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'moderate', idx, 'footerMult', parseFloat(e.target.value) || 0.8)}
+                                className={kw.footerMult > 1 ? 'border-green-500' : kw.footerMult < 1 ? 'border-red-500' : ''}
                               />
                               <Button
                                 variant="ghost"
@@ -325,12 +399,47 @@ export const KeywordMatrix = () => {
                           </Button>
                         </div>
                         <div className="space-y-2">
+                          {/* Column Headers */}
+                          <div className="grid grid-cols-[1fr_80px_80px_80px_40px] gap-2 text-xs text-muted-foreground font-medium px-2">
+                            <div>Keyword</div>
+                            <div>Header</div>
+                            <div>Body</div>
+                            <div>Footer</div>
+                            <div></div>
+                          </div>
                           {keywords.weak.map((kw, idx) => (
-                            <div key={idx} className="flex gap-2">
+                            <div key={idx} className="grid grid-cols-[1fr_80px_80px_80px_40px] gap-2">
                               <Input
-                                value={kw}
-                                onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'weak', idx, e.target.value)}
-                                placeholder="Enter keyword..."
+                                value={kw.keyword}
+                                onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'weak', idx, 'keyword', e.target.value)}
+                                placeholder="Keyword..."
+                              />
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="3"
+                                value={kw.headerMult}
+                                onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'weak', idx, 'headerMult', parseFloat(e.target.value) || 1.2)}
+                                className={kw.headerMult > 1 ? 'border-green-500' : kw.headerMult < 1 ? 'border-red-500' : ''}
+                              />
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="3"
+                                value={kw.bodyMult}
+                                onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'weak', idx, 'bodyMult', parseFloat(e.target.value) || 1.0)}
+                                className={kw.bodyMult > 1 ? 'border-green-500' : kw.bodyMult < 1 ? 'border-red-500' : ''}
+                              />
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="3"
+                                value={kw.footerMult}
+                                onChange={(e) => handleKeywordChange(docType as keyof typeof KEYWORD_MATRIX, 'weak', idx, 'footerMult', parseFloat(e.target.value) || 0.8)}
+                                className={kw.footerMult > 1 ? 'border-green-500' : kw.footerMult < 1 ? 'border-red-500' : ''}
                               />
                               <Button
                                 variant="ghost"
@@ -345,114 +454,29 @@ export const KeywordMatrix = () => {
                         </div>
                       </div>
 
-                      {/* Position Multipliers */}
-                      <div className="border-t pt-3 mt-3">
-                        <Label className="text-base font-semibold mb-3 block">Position-Based Multipliers</Label>
-                        <p className="text-xs text-muted-foreground mb-3">
-                          Keywords found in different document regions are multiplied by these values
-                        </p>
-                        <div className="grid grid-cols-3 gap-4">
-                          <div>
-                            <Label className="text-sm">Header (first 500 chars)</Label>
-                            <Input
-                              type="number"
-                              step="0.1"
-                              min="0"
-                              max="3"
-                              value={(keywords as any).headerMultiplier || 1.2}
-                              onChange={(e) => {
-                                const val = parseFloat(e.target.value) || 1.2;
-                                setEditedMatrix(prev => ({
-                                  ...prev,
-                                  [docType]: { ...prev[docType], headerMultiplier: val }
-                                }));
-                              }}
-                              className="mt-1"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-sm">Body (middle section)</Label>
-                            <Input
-                              type="number"
-                              step="0.1"
-                              min="0"
-                              max="3"
-                              value={(keywords as any).bodyMultiplier || 1.0}
-                              onChange={(e) => {
-                                const val = parseFloat(e.target.value) || 1.0;
-                                setEditedMatrix(prev => ({
-                                  ...prev,
-                                  [docType]: { ...prev[docType], bodyMultiplier: val }
-                                }));
-                              }}
-                              className="mt-1"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-sm">Footer (last 300 chars)</Label>
-                            <Input
-                              type="number"
-                              step="0.1"
-                              min="0"
-                              max="3"
-                              value={(keywords as any).footerMultiplier || 0.8}
-                              onChange={(e) => {
-                                const val = parseFloat(e.target.value) || 0.8;
-                                setEditedMatrix(prev => ({
-                                  ...prev,
-                                  [docType]: { ...prev[docType], footerMultiplier: val }
-                                }));
-                              }}
-                              className="mt-1"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
                       {/* Exclusion Keywords */}
                       <div className="border-t pt-3 mt-3">
                         <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <Label className="text-destructive">Exclusion Keywords</Label>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {(keywords as any).exclusionPenalty || 50}% penalty per keyword
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={(keywords as any).exclusionPenalty || 50}
-                              onChange={(e) => {
-                                const val = parseInt(e.target.value) || 50;
-                                setEditedMatrix(prev => ({
-                                  ...prev,
-                                  [docType]: { ...prev[docType], exclusionPenalty: val }
-                                }));
-                              }}
-                              className="w-20"
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setEditedMatrix(prev => ({
-                                  ...prev,
-                                  [docType]: {
-                                    ...prev[docType],
-                                    exclusion: [...((prev[docType] as any).exclusion || []), '']
-                                  }
-                                }));
-                              }}
-                            >
-                              <Plus className="h-4 w-4 mr-1" />
-                              Add
-                            </Button>
-                          </div>
+                          <Label className="text-destructive">Exclusion Keywords</Label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditedMatrix(prev => ({
+                                ...prev,
+                                [docType]: {
+                                  ...prev[docType],
+                                  exclusion: [...(prev[docType].exclusion || []), '']
+                                }
+                              }));
+                            }}
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add
+                          </Button>
                         </div>
                         <div className="space-y-2">
-                          {((keywords as any).exclusion || []).map((kw: string, idx: number) => (
+                          {(keywords.exclusion || []).map((kw, idx) => (
                             <div key={idx} className="flex gap-2">
                               <Input
                                 value={kw}
@@ -461,13 +485,13 @@ export const KeywordMatrix = () => {
                                     ...prev,
                                     [docType]: {
                                       ...prev[docType],
-                                      exclusion: ((prev[docType] as any).exclusion || []).map((k: string, i: number) =>
+                                      exclusion: prev[docType].exclusion?.map((k, i) => 
                                         i === idx ? e.target.value : k
-                                      )
+                                      ) || []
                                     }
                                   }));
                                 }}
-                                placeholder="Enter exclusion keyword..."
+                                placeholder="Exclusion keyword..."
                               />
                               <Button
                                 variant="ghost"
@@ -477,7 +501,7 @@ export const KeywordMatrix = () => {
                                     ...prev,
                                     [docType]: {
                                       ...prev[docType],
-                                      exclusion: ((prev[docType] as any).exclusion || []).filter((_: string, i: number) => i !== idx)
+                                      exclusion: prev[docType].exclusion?.filter((_, i) => i !== idx) || []
                                     }
                                   }));
                                 }}
@@ -488,18 +512,35 @@ export const KeywordMatrix = () => {
                             </div>
                           ))}
                         </div>
+                        <div className="mt-3">
+                          <Label className="text-sm">Exclusion Penalty (%)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={(keywords as any).exclusionPenalty || 50}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value) || 50;
+                              setEditedMatrix(prev => ({
+                                ...prev,
+                                [docType]: { ...prev[docType], exclusionPenalty: val }
+                              }));
+                            }}
+                            className="mt-1"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
                 ))}
-              </div>
-              <div className="flex justify-end gap-2 mt-4">
-                <Button variant="outline" onClick={() => setIsEditOpen(false)} disabled={isLoading}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSave} disabled={isLoading}>
-                  {isLoading ? "Saving..." : "Save Changes"}
-                </Button>
+                <div className="flex justify-end gap-2 pt-4 border-t">
+                  <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSave} disabled={isLoading}>
+                    {isLoading ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
@@ -507,64 +548,59 @@ export const KeywordMatrix = () => {
       </CardHeader>
       {isExpanded && (
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-semibold">Document Type</th>
-                  <th className="text-left py-3 px-4 font-semibold">Strong Indicators (+3)</th>
-                  <th className="text-left py-3 px-4 font-semibold">Moderate (+2)</th>
-                  <th className="text-left py-3 px-4 font-semibold">Weak (+1)</th>
-                  <th className="text-left py-3 px-4 font-semibold">Exclusion Keywords</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(KEYWORD_MATRIX).map(([docType, keywords]) => (
-                  <tr key={docType} className="border-b hover:bg-muted/50">
-                    <td className="py-3 px-4 font-medium">{docType}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex flex-wrap gap-1">
-                        {keywords.strong.map((kw) => (
-                          <Badge key={kw} variant="default" className="bg-success">
-                            {kw}
+          <div className="space-y-4">
+            {Object.entries(editedMatrix).map(([docType, keywords]) => (
+              <div key={docType} className="border rounded-lg p-4">
+                <h4 className="font-semibold mb-3">{docType}</h4>
+                <div className="grid gap-3">
+                  {keywords.strong.length > 0 && (
+                    <div>
+                      <span className="text-sm font-medium text-success">Strong (+3): </span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {keywords.strong.map((kw, idx) => (
+                          <Badge key={idx} variant="outline" className="text-xs">
+                            {kw.keyword}
+                            <span className="ml-1 text-muted-foreground text-[10px]">
+                              H:{kw.headerMult} B:{kw.bodyMult} F:{kw.footerMult}
+                            </span>
                           </Badge>
                         ))}
                       </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex flex-wrap gap-1">
-                        {keywords.moderate.map((kw) => (
-                          <Badge key={kw} variant="default" className="bg-warning">
-                            {kw}
+                    </div>
+                  )}
+                  {keywords.moderate.length > 0 && (
+                    <div>
+                      <span className="text-sm font-medium text-warning">Moderate (+2): </span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {keywords.moderate.map((kw, idx) => (
+                          <Badge key={idx} variant="outline" className="text-xs">
+                            {kw.keyword}
+                            <span className="ml-1 text-muted-foreground text-[10px]">
+                              H:{kw.headerMult} B:{kw.bodyMult} F:{kw.footerMult}
+                            </span>
                           </Badge>
                         ))}
                       </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex flex-wrap gap-1">
-                        {keywords.weak.map((kw) => (
-                          <Badge key={kw} variant="secondary">
-                            {kw}
+                    </div>
+                  )}
+                  {keywords.weak.length > 0 && (
+                    <div>
+                      <span className="text-sm font-medium">Weak (+1): </span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {keywords.weak.map((kw, idx) => (
+                          <Badge key={idx} variant="outline" className="text-xs">
+                            {kw.keyword}
+                            <span className="ml-1 text-muted-foreground text-[10px]">
+                              H:{kw.headerMult} B:{kw.bodyMult} F:{kw.footerMult}
+                            </span>
                           </Badge>
                         ))}
                       </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex flex-wrap gap-1">
-                        {keywords.exclusion?.map((kw) => (
-                          <Badge key={kw} variant="destructive">
-                            {kw}
-                          </Badge>
-                        ))}
-                        {(!keywords.exclusion || keywords.exclusion.length === 0) && (
-                          <span className="text-muted-foreground text-xs">None</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </CardContent>
       )}

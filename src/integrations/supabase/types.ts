@@ -76,55 +76,46 @@ export type Database = {
       }
       keyword_matrix: {
         Row: {
-          body_multiplier: number | null
           created_at: string
           doc_type: string
           exclusion_keywords: string[] | null
           exclusion_penalty_percentage: number | null
-          footer_multiplier: number | null
-          header_multiplier: number | null
           id: string
           mandatory_fields: Json | null
-          moderate_keywords: string[]
+          moderate_keywords: Json | null
           regional_keywords: Json | null
-          strong_keywords: string[]
+          strong_keywords: Json | null
           updated_at: string
           user_id: string
-          weak_keywords: string[]
+          weak_keywords: Json | null
         }
         Insert: {
-          body_multiplier?: number | null
           created_at?: string
           doc_type: string
           exclusion_keywords?: string[] | null
           exclusion_penalty_percentage?: number | null
-          footer_multiplier?: number | null
-          header_multiplier?: number | null
           id?: string
           mandatory_fields?: Json | null
-          moderate_keywords?: string[]
+          moderate_keywords?: Json | null
           regional_keywords?: Json | null
-          strong_keywords?: string[]
+          strong_keywords?: Json | null
           updated_at?: string
           user_id: string
-          weak_keywords?: string[]
+          weak_keywords?: Json | null
         }
         Update: {
-          body_multiplier?: number | null
           created_at?: string
           doc_type?: string
           exclusion_keywords?: string[] | null
           exclusion_penalty_percentage?: number | null
-          footer_multiplier?: number | null
-          header_multiplier?: number | null
           id?: string
           mandatory_fields?: Json | null
-          moderate_keywords?: string[]
+          moderate_keywords?: Json | null
           regional_keywords?: Json | null
-          strong_keywords?: string[]
+          strong_keywords?: Json | null
           updated_at?: string
           user_id?: string
-          weak_keywords?: string[]
+          weak_keywords?: Json | null
         }
         Relationships: []
       }

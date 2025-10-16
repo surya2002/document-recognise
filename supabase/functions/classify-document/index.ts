@@ -15,7 +15,7 @@ You are an advanced Indian document type classifier. Your task is to analyze OCR
 
 1. **Case-insensitive matching**: All keyword matching is case-insensitive
 2. **Partial matching**: "INVOICE" matches "TAX INVOICE", "INVOICE NO", "INVOICE NUMBER", etc.
-3. **Position-aware scoring**: Keywords in different document regions have configurable weights
+3. **Position-aware scoring**: Each keyword has its own position multipliers for header, body, and footer regions
 4. **Frequency capping**: Same keyword repeated multiple times is capped at 3× weight to prevent gaming
 5. **Validation-first approach**: Even high confidence scores can be overridden if mandatory fields are missing
 
@@ -29,7 +29,7 @@ Divide the OCR text into three regions:
 - **Body Region**: Characters 501 to (length - 300)
 - **Footer Region**: Last 300 characters
 
-Each document type has custom multipliers for these regions.
+Each keyword has custom multipliers for these regions.
 
 ---
 
@@ -40,30 +40,31 @@ Each document type has custom multipliers for these regions.
   matrixData.forEach((row: any) => {
     prompt += `### ${row.doc_type}\n\n`;
     
-    // Position multipliers (custom per document type)
-    const headerMult = row.header_multiplier || 1.2;
-    const bodyMult = row.body_multiplier || 1.0;
-    const footerMult = row.footer_multiplier || 0.8;
-    
-    prompt += `**Position Multipliers for ${row.doc_type}**:\n`;
-    prompt += `- Header (first 500 chars): ${headerMult}× multiplier\n`;
-    prompt += `- Body (middle section): ${bodyMult}× multiplier\n`;
-    prompt += `- Footer (last 300 chars): ${footerMult}× multiplier\n\n`;
-    
-    // Strong/Moderate/Weak keywords
+    // Strong keywords with individual multipliers
     if (row.strong_keywords && row.strong_keywords.length > 0) {
       prompt += `**Strong Indicators (+3 points)**:\n`;
-      prompt += `- ${row.strong_keywords.map((k: string) => `"${k}"`).join(', ')}\n\n`;
+      row.strong_keywords.forEach((kw: any) => {
+        prompt += `- "${kw.keyword}" (Header: ${kw.headerMult}×, Body: ${kw.bodyMult}×, Footer: ${kw.footerMult}×)\n`;
+      });
+      prompt += `\n`;
     }
     
+    // Moderate keywords with individual multipliers
     if (row.moderate_keywords && row.moderate_keywords.length > 0) {
       prompt += `**Moderate Indicators (+2 points)**:\n`;
-      prompt += `- ${row.moderate_keywords.map((k: string) => `"${k}"`).join(', ')}\n\n`;
+      row.moderate_keywords.forEach((kw: any) => {
+        prompt += `- "${kw.keyword}" (Header: ${kw.headerMult}×, Body: ${kw.bodyMult}×, Footer: ${kw.footerMult}×)\n`;
+      });
+      prompt += `\n`;
     }
     
+    // Weak keywords with individual multipliers
     if (row.weak_keywords && row.weak_keywords.length > 0) {
       prompt += `**Weak Indicators (+1 point)**:\n`;
-      prompt += `- ${row.weak_keywords.map((k: string) => `"${k}"`).join(', ')}\n\n`;
+      row.weak_keywords.forEach((kw: any) => {
+        prompt += `- "${kw.keyword}" (Header: ${kw.headerMult}×, Body: ${kw.bodyMult}×, Footer: ${kw.footerMult}×)\n`;
+      });
+      prompt += `\n`;
     }
     
     // Exclusion keywords with CONFIGURABLE penalty
@@ -99,15 +100,15 @@ For each document type:
 For each keyword found:
   1. Determine keyword weight (3, 2, or 1)
   2. Determine the document region (header, body, or footer)
-  3. Apply the custom position multiplier for that document type and region
+  3. Apply the keyword's specific position multiplier for that region
   4. Count occurrences (cap at 3 to prevent keyword stuffing)
   
-  Keyword Score = weight × custom_position_multiplier × min(occurrences, 3)
+  Keyword Score = weight × keyword_position_multiplier × min(occurrences, 3)
 
 Raw Score for Document Type = Sum of all Keyword Scores
 \`\`\`
 
-**IMPORTANT**: Use the custom position multipliers specified for each document type above, NOT the default values.
+**IMPORTANT**: Use the specific position multipliers shown for each keyword above, NOT default values.
 
 ### Phase 2: Exclusion Penalty Application
 
@@ -119,90 +120,44 @@ For each exclusion keyword found:
   
 Adjusted Score = Raw Score × (1 - Penalty Factor × exclusion_count)
 
-If Adjusted Score < 0, set to 0
+Example:
+- Resume raw score = 20.0
+- Found 2 exclusion keywords ("invoice", "tax")
+- Exclusion penalty = 50%
+- Adjusted Score = 20.0 × (1 - 0.5 × 2) = 20.0 × 0.0 = 0.0
 \`\`\`
 
-### Phase 3: Normalization to Percentages
+### Phase 3: Confidence Calculation
 
 \`\`\`
-Sum of All Adjusted Scores = Σ(Adjusted Score for each document type)
-
-If Sum = 0:
-  Return "Unknown" classification with 0% confidence
+Total Score = Sum of all adjusted scores across all document types
 
 For each document type:
-  Normalized Confidence = (Adjusted Score / Sum) × 100%
-  
-Verification: Sum of all confidences = 100%
+  Confidence % = (Adjusted Score / Total Score) × 100
 \`\`\`
 
-### Phase 4: Validation Checks
+### Phase 4: Final Validation
 
-Perform these validation checks on the **highest scoring document type**:
+Before finalizing classification:
 
-#### Check 1: Minimum Unique Keywords
-\`\`\`
-Count unique keywords matched (not total occurrences)
-
-If unique_keywords < 3:
-  Apply -40% penalty to confidence
-\`\`\`
-
-#### Check 2: Mandatory Fields Presence
-\`\`\`
-For each mandatory field missing:
-  Apply -30% penalty to confidence
-\`\`\`
-
-#### Check 3: Keyword Stuffing Detection
-\`\`\`
-If (any single keyword occurs > 5 times) AND (unique_keywords < 3):
-  Apply -20% penalty (keyword stuffing detected)
-\`\`\`
-
-#### Check 4: Text Quality Check
-\`\`\`
-If text length < 50 characters:
-  Set confidence to 0
-  Return "Unable to classify - Insufficient text"
-  
-If text length < 150 characters:
-  Apply -25% penalty (limited content warning)
-\`\`\`
-
-#### Apply All Penalties
-\`\`\`
-Final Confidence = Normalized Confidence - Sum of All Penalties
-
-If Final Confidence < 40%:
-  Override to "Unknown" with 0% confidence
-\`\`\`
-
-### Phase 5: Ambiguity Detection
-
-\`\`\`
-If 2 or more document types have confidence > 60%:
-  Flag as "Ambiguous - Multiple document types detected"
-  
-If highest confidence < 40% after validation:
-  Override to "Unknown"
-\`\`\`
+1. **Check mandatory fields** (if specified for the probable type)
+2. **Apply validation penalties** if mandatory fields are missing
+3. **Set ambiguity warnings** if top two confidences are within 15% of each other
+4. **Check text quality** (good = >500 chars, fair = 200-500 chars, poor = <200 chars)
 
 ---
 
 ## Output Format
 
-Return **ONLY** valid JSON in this exact format:
+You MUST return a valid JSON object (no markdown, no backticks) with this exact structure:
 
 \`\`\`json
 {
-  "probable_type": "Invoice",
-  "confidence_percentage": 85.3,
-  "secondary_type": "Bank Statement",
-  "secondary_confidence": 14.7,
-  "keywords_detected": [
+  "probableType": "Resume",
+  "confidencePercentage": 85.5,
+  "keywordsDetected": [
     {
-      "keyword": "TAX INVOICE",
+      "keyword": "Work Experience",
       "weight": 3,
       "type": "strong",
       "position": "header",
@@ -210,251 +165,340 @@ Return **ONLY** valid JSON in this exact format:
       "occurrences_capped": 2
     }
   ],
-  "exclusion_keywords_found": [],
-  "unique_keywords_count": 3,
-  "mandatory_fields_status": {
-    "gstin_or_tax_invoice": "present",
-    "invoice_number": "present",
-    "item_details": "present"
+  "reasoning": "Found strong indicators like 'Work Experience' in header (×1.5) and 'Education' in body (×1.1). Total raw score: 20.4 after position multipliers. No exclusion keywords found.",
+  "secondaryType": "ITR",
+  "secondaryConfidence": 12.3,
+  "exclusionKeywordsFound": [],
+  "uniqueKeywordsCount": 8,
+  "mandatoryFieldsStatus": {
+    "Work Experience": "present",
+    "Education": "present"
   },
-  "validation_status": "PASSED",
-  "validation_penalties_applied": [],
-  "reasoning": "Strong presence of GST-specific identifiers in header region.",
-  "ambiguity_warning": null,
-  "text_quality": "good",
-  "text_length": 847
+  "validationStatus": "PASSED",
+  "validationPenaltiesApplied": [],
+  "ambiguityWarning": null,
+  "textQuality": "good",
+  "textLength": 1245,
+  "preValidationType": "Resume",
+  "preValidationConfidence": 85.5
 }
 \`\`\`
 
-### Important Notes
+---
 
-1. **Always return valid JSON** - No additional text before or after the JSON
-2. **Case-insensitive matching** - "invoice" matches "INVOICE" matches "Invoice"
-3. **Partial matching** - "TAX INVOICE" contains "INVOICE" and "TAX"
-4. **Cap keyword occurrences** - Maximum 3× weight for repeated keywords
-5. **Apply exclusion penalties** - Use the configured penalty percentage per exclusion keyword found
-6. **Validate mandatory fields** - Missing fields incur 30% penalty each
-7. **Override to Unknown** - If final confidence < 40% after all penalties
-8. **Detect ambiguity** - Flag if 2+ types score > 60%
-9. **Check text quality** - Minimum 50 characters required for classification
+## Decision Rules
+
+1. **High confidence (>70%)**: Likely correct classification
+2. **Medium confidence (40-70%)**: Review reasoning and keywords carefully
+3. **Low confidence (<40%)**: Mark as "Unknown" or "Mixed Document"
+4. **Close call (difference <15%)**: Add ambiguity warning
+5. **Missing mandatory fields**: Apply validation penalty or override classification
 
 ---
 
-Now analyze the provided OCR text and return the classification in JSON format.`;
+## Example Classification
+
+**Input Text:**
+"RESUME OBJECTIVE: Seeking software engineer role at tech company. WORK EXPERIENCE: Software Developer at ABC Corp (2019-2023). EDUCATION: BS Computer Science, XYZ University (2019)."
+
+**Expected Output:**
+\`\`\`json
+{
+  "probableType": "Resume",
+  "confidencePercentage": 92.8,
+  "keywordsDetected": [
+    {
+      "keyword": "Resume Objective",
+      "weight": 3,
+      "type": "strong",
+      "position": "header",
+      "occurrences": 1,
+      "occurrences_capped": 1
+    },
+    {
+      "keyword": "Work Experience",
+      "weight": 3,
+      "type": "strong",
+      "position": "body",
+      "occurrences": 1,
+      "occurrences_capped": 1
+    },
+    {
+      "keyword": "Education",
+      "weight": 3,
+      "type": "strong",
+      "position": "body",
+      "occurrences": 1,
+      "occurrences_capped": 1
+    }
+  ],
+  "reasoning": "Strong resume indicators: 'Resume Objective' in header (3 × 1.2 = 3.6), 'Work Experience' in body (3 × 1.0 = 3.0), 'Education' in body (3 × 1.0 = 3.0). Total raw score: 9.6. No exclusion keywords found. Clear resume structure.",
+  "secondaryType": "Unknown",
+  "secondaryConfidence": 0.0,
+  "exclusionKeywordsFound": [],
+  "uniqueKeywordsCount": 3,
+  "mandatoryFieldsStatus": {},
+  "validationStatus": "PASSED",
+  "validationPenaltiesApplied": [],
+  "ambiguityWarning": null,
+  "textQuality": "good",
+  "textLength": 185,
+  "preValidationType": "Resume",
+  "preValidationConfidence": 92.8
+}
+\`\`\`
+
+---
+
+Now classify the following document text:
+`;
 
   return prompt;
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (!GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY not configured');
-    }
-
     const { ocrText, userId } = await req.json();
-
-    // Fetch user's custom keyword matrix from database (including new fields)
-    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
-    const { data: matrixData, error: matrixError } = await supabase
-      .from('keyword_matrix')
-      .select('*')
-      .eq('user_id', userId);
-
-    let keywordMatrix: any[] = [
-      {
-        "doc_type": "Resume",
-        "strong_keywords": ["Resume", "Curriculum Vitae", "CV", "Work Experience", "Professional Experience", "Employment History", "Career Objective", "Professional Summary", "Career Summary", "Skills and Certifications", "Technical Skills", "Core Competencies", "Professional Profile"],
-        "moderate_keywords": ["LinkedIn", "GitHub", "Portfolio", "Email:", "E-mail:", "Phone:", "Mobile:", "Contact:", "Tel:", "References", "Certifications", "Professional Certifications", "Accomplishments"],
-        "weak_keywords": ["Hobbies", "Interests", "Personal Interests", "Projects", "Personal Projects", "Achievements", "Awards", "Honors", "Languages Known", "Languages", "Personal Details", "Objective"],
-        "exclusion_keywords": ["Salary", "CTC", "Basic Pay", "Basic Salary", "HRA", "House Rent Allowance", "Form 16", "Form-16", "TDS", "Tax Deducted", "GSTIN", "GST", "Invoice", "Tax Invoice", "Assessment Year", "Marks Obtained", "Total Marks", "Roll No", "Registration Number"],
-        "exclusion_penalty_percentage": 50,
-        "mandatory_fields": {
-          "description": "Must have at least 2 of 3",
-          "fields": ["Work Experience OR Education (with timeline/dates)", "Contact Information (Email OR Phone)", "Skills OR Career Objective OR Professional Summary"]
-        },
-        "regional_keywords": {}
-      },
-      {
-        "doc_type": "ITR",
-        "strong_keywords": ["INDIAN INCOME TAX RETURN", "Income Tax Return", "ITR-1", "ITR-2", "ITR-3", "ITR-4", "ITR-5", "ITR-6", "ITR-7", "SAHAJ", "SUGAM", "PART A GENERAL INFORMATION", "Part A - General Information", "Income Tax Department", "Acknowledgement Number", "Acknowledgment Number", "Return Filed", "ITR Acknowledgement"],
-        "moderate_keywords": ["Assessment Year", "AY", "PAN", "Permanent Account Number", "Verification", "Total Income", "Total Taxable Income", "Tax Payable", "Tax Liability", "Section 80C", "Section 80D", "Section 80G", "Taxable Income", "Financial Year", "FY", "Income Tax Portal", "e-Filing"],
-        "weak_keywords": ["Deductions", "Income from Salaries", "Income from Salary", "TDS", "Tax Deducted at Source", "Income from House Property", "Capital Gains", "Income from Other Sources", "Other Sources", "Gross Total Income"],
-        "exclusion_keywords": ["Form 16", "Form-16", "Form No. 16", "TDS Certificate", "Part A", "Part B", "Employer TAN", "Salary Slip", "Pay Slip", "Payslip", "Monthly Salary", "Net Salary"],
-        "exclusion_penalty_percentage": 50,
-        "mandatory_fields": {
-          "description": "Must have at least 2 of 3",
-          "fields": ["ITR Form Type (ITR-1/2/3/4/5/6/7 OR SAHAJ OR SUGAM)", "PAN OR Permanent Account Number", "Assessment Year OR Financial Year OR Total Income/Tax Payable"]
-        },
-        "regional_keywords": {
-          "Income Tax Return": "आयकर रिटर्न"
-        }
-      },
-      {
-        "doc_type": "Bank Statement",
-        "strong_keywords": ["STATEMENT OF ACCOUNT", "Statement of Account", "Account Statement", "Bank Statement", "Account Number", "A/c No", "A/C Number", "Statement Period", "Statement Date", "IFSC Code", "IFSC", "Branch Name", "Branch Code", "Account Summary", "Transaction Statement"],
-        "moderate_keywords": ["Deposit", "Withdrawal", "Balance", "Credit", "Debit", "Opening Balance", "Closing Balance", "Available Balance", "Transaction", "Running Balance", "Current Balance", "NEFT", "RTGS", "IMPS", "UPI", "Cheque", "Check", "Transfer", "ATM Withdrawal"],
-        "weak_keywords": ["Transaction Date", "Trans Date", "Value Date", "Date", "Customer Name", "Account Holder", "Reference Number", "Ref No", "Cheque No", "Check No", "Narration", "Particulars", "Description", "Branch Address"],
-        "exclusion_keywords": ["Invoice", "Tax Invoice", "Bill", "GSTIN", "GST Number", "HSN Code", "HSN", "SAC Code", "Salary", "Pay Slip", "Payslip", "Basic Salary", "Marks", "Marks Obtained", "Roll No", "Subject"],
-        "exclusion_penalty_percentage": 50,
-        "mandatory_fields": {
-          "description": "Must have at least 2 of 3",
-          "fields": ["Account Number OR A/c No", "Transaction records (at least 2 transactions with dates) OR Balance information", "IFSC Code OR Bank Name OR Branch Name"]
-        },
-        "regional_keywords": {
-          "Bank Statement": "खाता विवरण",
-          "Statement of Account": "लेखा विवरण"
-        }
-      },
-      {
-        "doc_type": "Invoice",
-        "strong_keywords": ["INVOICE", "TAX INVOICE", "Tax Invoice", "GSTIN", "GST Number", "GST Invoice", "Invoice No.", "Invoice Number", "Invoice No", "Inv No", "Invoice Date", "Bill of Supply", "Proforma Invoice", "Pro-forma Invoice", "Commercial Invoice", "Supply Invoice"],
-        "moderate_keywords": ["Buyer", "Vendor", "Supplier", "Seller", "Bill To", "Ship To", "Shipping Address", "Billing Address", "Total Amount", "Grand Total", "Net Amount", "Terms and Conditions", "Payment Terms", "HSN Code", "HSN", "SAC Code", "SAC", "CGST", "SGST", "IGST", "GST Amount", "Tax Amount", "Place of Supply", "State Code", "Invoice Total", "Amount Payable"],
-        "weak_keywords": ["Quantity", "Qty", "Rate", "Price", "Unit Price", "Amount", "Taxable Value", "Taxable Amount", "Description", "Item", "Item Description", "Product", "Service", "Discount", "Total Before Tax", "Subtotal"],
-        "exclusion_keywords": ["Salary", "Pay Slip", "Payslip", "Employee ID", "Employee", "Basic Pay", "Basic Salary", "HRA", "Statement of Account", "Account Number", "Opening Balance", "Closing Balance", "Marks Obtained", "Roll No", "Subject", "Grade"],
-        "exclusion_penalty_percentage": 50,
-        "mandatory_fields": {
-          "description": "Must have at least 2 of 3",
-          "fields": ["GSTIN OR 'Tax Invoice' OR 'Invoice' in header region", "Invoice Number OR Invoice No", "Item/Product/Service details with quantities OR amounts"]
-        },
-        "regional_keywords": {
-          "Invoice": "कर चालान",
-          "Tax Invoice": "कर बीजक",
-          "GST Invoice": "जीएसटी चालान"
-        }
-      },
-      {
-        "doc_type": "Marksheet",
-        "strong_keywords": ["STATEMENT OF MARKS", "Statement of Marks", "MARK SHEET", "MARKSHEET", "Mark Sheet", "BOARD OF SECONDARY EDUCATION", "Board of Education", "Grade Sheet", "Grade Card", "Division", "CBSE", "Central Board of Secondary Education", "ICSE", "Indian Certificate of Secondary Education", "University Examination", "Result Card", "Transcript", "Academic Record", "Academic Transcript", "Consolidated Marksheet", "Semester Result", "Final Result", "Examination Result"],
-        "moderate_keywords": ["Subject", "Subjects", "Marks Obtained", "Marks Secured", "Roll No.", "Roll Number", "Roll No", "Registration Number", "Reg No", "Reg. No.", "Enrollment Number", "CGPA", "GPA", "Grade", "Grades", "Class", "Semester", "Examination", "Theory", "Practical", "Internal", "External", "Obtained Marks"],
-        "weak_keywords": ["Total Marks", "Maximum Marks", "Max Marks", "Percentage", "Result", "Pass", "Passed", "First Class", "Second Class", "Third Class", "Distinction", "Merit", "Pass Class", "Grand Total", "Aggregate"],
-        "exclusion_keywords": ["Salary", "Pay Slip", "Payslip", "Invoice", "Tax Invoice", "GSTIN", "Account Number", "Statement of Account", "Balance", "Withdrawal", "Deposit", "Work Experience", "Career Objective", "Professional Summary"],
-        "exclusion_penalty_percentage": 50,
-        "mandatory_fields": {
-          "description": "Must have at least 3 of 4",
-          "fields": ["Roll No. OR Registration Number OR Enrollment Number", "Subject names (at least 3 different subjects)", "Marks OR Grades OR CGPA/GPA", "Board/University name OR Examination name OR Result/Pass status"]
-        },
-        "regional_keywords": {
-          "Marksheet": "अंक पत्र",
-          "Statement of Marks": "अंकतालिका"
-        }
-      }
-    ];
-
-    // Use custom matrix if available
-    if (matrixData && matrixData.length > 0) {
-      keywordMatrix = matrixData;
-      console.log('Using custom keyword matrix for user:', userId);
-    } else {
-      console.log('Using default keyword matrix');
-    }
-
-    const CLASSIFICATION_PROMPT = buildAdvancedClassificationPrompt(keywordMatrix);
     
-    // Validate text content before classification
-    if (!ocrText || !ocrText.trim()) {
+    if (!ocrText) {
+      console.error('Missing required field: ocrText');
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'No text content found in document'
-        }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
+        JSON.stringify({ error: 'Missing required field: ocrText' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
-    // Check for minimum meaningful content
-    if (ocrText.trim().length < 10) {
+    // Get environment variables
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!geminiApiKey || !supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing required environment variables');
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Insufficient text content for classification'
-        }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
+        JSON.stringify({ error: 'Server configuration error' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
 
-    console.log(`Classifying document with text length: ${ocrText.length}`);
+    // Create Supabase client
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Call Google Gemini API with the advanced prompt
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-001:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `${CLASSIFICATION_PROMPT}\n\nOCR Text to classify:\n${ocrText.substring(0, 10000)}`
-            }]
-          }],
-          generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 4096,
-          }
-        }),
+    // Fetch user-specific keyword matrix or use default
+    let matrixData: any[] = [];
+    
+    if (userId) {
+      const { data, error } = await supabase
+        .from('keyword_matrix')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Error fetching keyword matrix:', error);
+      } else if (data && data.length > 0) {
+        matrixData = data;
+        console.log(`Using user-specific matrix with ${data.length} document types`);
       }
-    );
+    }
+
+    // If no user-specific matrix, use default
+    if (matrixData.length === 0) {
+      console.log('Using default keyword matrix');
+      matrixData = [
+        {
+          doc_type: 'Resume',
+          strong_keywords: [
+            { keyword: 'Resume Objective', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Work Experience', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Education', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Skills and Certifications', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 }
+          ],
+          moderate_keywords: [
+            { keyword: 'LinkedIn', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Email:', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Phone:', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 }
+          ],
+          weak_keywords: [
+            { keyword: 'Hobbies and Interests', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Projects', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 }
+          ],
+          exclusion_keywords: ['invoice', 'statement', 'receipt', 'tax', 'bank', 'GSTIN', 'PAN', 'marks', 'grade'],
+          exclusion_penalty_percentage: 50,
+          mandatory_fields: {},
+          regional_keywords: {}
+        },
+        {
+          doc_type: 'ITR',
+          strong_keywords: [
+            { keyword: 'INDIAN INCOME TAX RETURN', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'ITR-1 SAHAJ', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'PART A GENERAL INFORMATION', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 }
+          ],
+          moderate_keywords: [
+            { keyword: 'Assessment Year', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'PAN', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Verification', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 }
+          ],
+          weak_keywords: [
+            { keyword: 'Deductions', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Income from Salaries', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 }
+          ],
+          exclusion_keywords: ['resume', 'curriculum vitae', 'education', 'experience', 'skills', 'invoice', 'bank statement'],
+          exclusion_penalty_percentage: 50,
+          mandatory_fields: {},
+          regional_keywords: {}
+        },
+        {
+          doc_type: 'Bank Statement',
+          strong_keywords: [
+            { keyword: 'STATEMENT OF ACCOUNT', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Account Number', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Statement Period', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 }
+          ],
+          moderate_keywords: [
+            { keyword: 'Deposit', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Withdrawal', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Balance', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 }
+          ],
+          weak_keywords: [
+            { keyword: 'Transaction Date', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Customer Name', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 }
+          ],
+          exclusion_keywords: ['resume', 'invoice', 'tax return', 'marksheet', 'grade', 'ITR', 'GSTIN'],
+          exclusion_penalty_percentage: 50,
+          mandatory_fields: {},
+          regional_keywords: {}
+        },
+        {
+          doc_type: 'Invoice',
+          strong_keywords: [
+            { keyword: 'INVOICE', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Tax Invoice', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'GSTIN', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Invoice No.', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 }
+          ],
+          moderate_keywords: [
+            { keyword: 'Buyer', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Vendor', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Total Amount', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Terms and Conditions', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 }
+          ],
+          weak_keywords: [
+            { keyword: 'Quantity', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Rate', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Amount', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 }
+          ],
+          exclusion_keywords: ['resume', 'experience', 'education', 'bank statement', 'marks', 'ITR', 'assessment year'],
+          exclusion_penalty_percentage: 50,
+          mandatory_fields: {},
+          regional_keywords: {}
+        },
+        {
+          doc_type: 'Marksheet',
+          strong_keywords: [
+            { keyword: 'STATEMENT OF MARKS', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'BOARD OF SECONDARY EDUCATION', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Division', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 }
+          ],
+          moderate_keywords: [
+            { keyword: 'Subject', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Marks Obtained', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Roll No.', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 }
+          ],
+          weak_keywords: [
+            { keyword: 'Total Marks', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Percentage', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 },
+            { keyword: 'Result', headerMult: 1.2, bodyMult: 1.0, footerMult: 0.8 }
+          ],
+          exclusion_keywords: ['invoice', 'tax', 'salary', 'transaction', 'experience', 'GSTIN', 'bank statement'],
+          exclusion_penalty_percentage: 50,
+          mandatory_fields: {},
+          regional_keywords: {}
+        }
+      ];
+    }
+
+    // Build prompt with matrix data
+    const systemPrompt = buildAdvancedClassificationPrompt(matrixData);
+
+    // Basic validation of OCR text
+    if (typeof ocrText !== 'string' || ocrText.trim().length === 0) {
+      console.error('Invalid ocrText provided');
+      return new Response(
+        JSON.stringify({ error: 'Invalid OCR text provided' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    console.log(`Processing document with ${ocrText.length} characters of OCR text`);
+
+    // Call Gemini API
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`;
+    
+    const geminiResponse = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: systemPrompt + '\n\n' + ocrText
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.2,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 2048,
+        }
+      })
+    });
 
     if (!geminiResponse.ok) {
       const errorText = await geminiResponse.text();
-      console.error('Gemini API error:', geminiResponse.status, errorText);
-      throw new Error(`Gemini API error: ${geminiResponse.status}`);
+      console.error('Gemini API error:', errorText);
+      throw new Error(`Gemini API error: ${geminiResponse.status} ${errorText}`);
     }
 
-    const geminiResult = await geminiResponse.json();
-    const content = geminiResult.candidates?.[0]?.content?.parts?.[0]?.text;
+    const geminiData = await geminiResponse.json();
     
-    if (!content) {
-      throw new Error('No content in Gemini response');
+    if (!geminiData.candidates || !geminiData.candidates[0]?.content?.parts?.[0]?.text) {
+      console.error('Unexpected Gemini API response format:', JSON.stringify(geminiData));
+      throw new Error('Unexpected response format from Gemini API');
     }
 
-    console.log('Gemini response:', content.substring(0, 300));
-
-    // Parse JSON from the response, handling markdown code blocks
-    let jsonContent = content.trim();
-    if (jsonContent.startsWith('```json')) {
-      jsonContent = jsonContent.replace(/```json\n/, '').replace(/\n```$/, '');
-    } else if (jsonContent.startsWith('```')) {
-      jsonContent = jsonContent.replace(/```\n/, '').replace(/\n```$/, '');
+    let responseText = geminiData.candidates[0].content.parts[0].text.trim();
+    
+    // Remove markdown code blocks if present
+    if (responseText.startsWith('```json')) {
+      responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?$/g, '').trim();
+    } else if (responseText.startsWith('```')) {
+      responseText = responseText.replace(/```\n?/g, '').trim();
     }
-
-    const classificationResult = JSON.parse(jsonContent);
-
+    
+    console.log('Classification result:', responseText);
+    
+    // Parse the JSON response
+    const classification = JSON.parse(responseText);
+    
     return new Response(
-      JSON.stringify(classificationResult),
+      JSON.stringify(classification),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Error in classify-document:', error);
+    console.error('Classification error:', error);
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        probable_type: "Unknown",
-        confidence_percentage: 0,
-        keywords_detected: [],
-        reasoning: "Classification failed due to error",
-        validation_status: "FAILED"
+        error: error instanceof Error ? error.message : 'Unknown error occurred during classification'
       }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
