@@ -2,8 +2,10 @@ import { ProcessedDocument } from "@/types/document";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { FileText, Download, Loader2, CheckCircle2, AlertCircle, X } from "lucide-react";
+import { FileText, Download, Loader2, CheckCircle2, AlertCircle, X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useState } from "react";
 
 interface DocumentResultsProps {
   documents: ProcessedDocument[];
@@ -11,7 +13,13 @@ interface DocumentResultsProps {
 }
 
 export const DocumentResults = ({ documents, onDelete }: DocumentResultsProps) => {
+  const [openDetails, setOpenDetails] = useState<Record<number, boolean>>({});
+  
   if (documents.length === 0) return null;
+
+  const toggleDetails = (index: number) => {
+    setOpenDetails(prev => ({ ...prev, [index]: !prev[index] }));
+  };
 
   const getStatusIcon = (status: ProcessedDocument["status"]) => {
     switch (status) {
@@ -90,95 +98,131 @@ export const DocumentResults = ({ documents, onDelete }: DocumentResultsProps) =
                         className="h-2 mb-3"
                       />
 
-                      <div className="ml-4 mt-2 text-sm border-l-2 border-muted pl-3 space-y-2">
-                        {doc.validationStatus && (
-                          <Badge variant={doc.validationStatus === 'PASSED' ? 'default' : 'destructive'}>
-                            {doc.validationStatus}
-                          </Badge>
-                        )}
-                        {doc.textQuality && (
-                          <Badge variant="outline" className={
-                            doc.textQuality === 'good' ? 'border-success' :
-                            doc.textQuality === 'fair' ? 'border-warning' : 'border-destructive'
-                          }>
-                            {doc.textQuality} quality
-                          </Badge>
-                        )}
-
-                        {doc.secondaryType && doc.secondaryConfidence && doc.secondaryConfidence > 15 && (
-                          <div className="text-xs text-muted-foreground">
-                            Secondary: {doc.secondaryType} ({doc.secondaryConfidence.toFixed(1)}%)
-                          </div>
-                        )}
-
-                        {doc.exclusionKeywordsFound && doc.exclusionKeywordsFound.length > 0 && (
-                          <div className="text-xs text-destructive">
-                            ⚠️ Exclusion keywords: {doc.exclusionKeywordsFound.join(', ')}
-                          </div>
-                        )}
-
-                        {doc.validationPenaltiesApplied && doc.validationPenaltiesApplied.length > 0 && (
-                          <div className="text-xs text-warning">
-                            <div className="font-medium">Penalties:</div>
-                            <ul className="list-disc list-inside">
-                              {doc.validationPenaltiesApplied.map((penalty, pIdx) => (
-                                <li key={pIdx}>{penalty}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {doc.ambiguityWarning && (
-                          <div className="text-xs text-warning font-medium">
-                            ⚠️ {doc.ambiguityWarning}
-                          </div>
-                        )}
-
-                        {doc.mandatoryFieldsStatus && (
-                          <div className="text-xs">
-                            <span className="font-medium">Mandatory Fields:</span>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {Object.entries(doc.mandatoryFieldsStatus).map(([field, status]) => (
-                                <Badge 
-                                  key={field} 
-                                  variant={status === 'present' ? 'default' : 'destructive'}
-                                  className="text-xs"
-                                >
-                                  {field}: {status}
+                      <Collapsible open={openDetails[index]} onOpenChange={() => toggleDetails(index)}>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" size="sm" className="w-full justify-start gap-2 mb-2">
+                            <ChevronDown className={`h-4 w-4 transition-transform ${openDetails[index] ? 'transform rotate-180' : ''}`} />
+                            <span className="text-sm">View Classification Details</span>
+                          </Button>
+                        </CollapsibleTrigger>
+                        
+                        <CollapsibleContent>
+                          <div className="ml-4 mt-2 text-sm border-l-2 border-muted pl-3 space-y-3">
+                            {doc.validationStatus && (
+                              <div className="space-y-1">
+                                <Badge variant={doc.validationStatus === 'PASSED' ? 'default' : 'destructive'}>
+                                  Validation: {doc.validationStatus}
                                 </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
+                                <p className="text-xs text-muted-foreground">
+                                  {doc.validationStatus === 'PASSED' 
+                                    ? 'All required document criteria met' 
+                                    : 'Missing required fields or criteria'}
+                                </p>
+                              </div>
+                            )}
+                            
+                            {doc.textQuality && (
+                              <div className="space-y-1">
+                                <Badge variant="outline" className={
+                                  doc.textQuality === 'good' ? 'border-success' :
+                                  doc.textQuality === 'fair' ? 'border-warning' : 'border-destructive'
+                                }>
+                                  OCR Quality: {doc.textQuality === 'good' ? 'Excellent' : doc.textQuality === 'fair' ? 'Fair' : 'Poor'}
+                                </Badge>
+                                <p className="text-xs text-muted-foreground">
+                                  {doc.textQuality === 'good' && 'Text extracted clearly with high confidence'}
+                                  {doc.textQuality === 'fair' && 'Some text may be unclear or require verification'}
+                                  {doc.textQuality === 'poor' && 'Text extraction had difficulties, manual review recommended'}
+                                </p>
+                              </div>
+                            )}
 
-                        {doc.keywordsDetected && doc.keywordsDetected.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {doc.keywordsDetected.map((kw, kwIdx) => (
-                              <Badge
-                                key={kwIdx}
-                                variant="secondary"
-                                className={
-                                  kw.type === "strong"
-                                    ? "bg-success/20"
-                                    : kw.type === "moderate"
-                                    ? "bg-warning/20"
-                                    : "bg-secondary"
-                                }
-                              >
-                                {kw.keyword} (+{kw.weight})
-                                {kw.position && ` [${kw.position}]`}
-                                {kw.occurrences && kw.occurrences > 1 && ` x${kw.occurrences_capped || kw.occurrences}`}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
+                            {doc.keywordsDetected && doc.keywordsDetected.length > 0 && (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold">Keywords Found in Document ({doc.keywordsDetected.length})</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  (+weight) indicates keyword strength, [position] shows where found, x# shows occurrences
+                                </p>
+                                <div className="flex flex-wrap gap-1">
+                                  {doc.keywordsDetected.map((kw, kwIdx) => (
+                                    <Badge
+                                      key={kwIdx}
+                                      variant="secondary"
+                                      className={
+                                        kw.type === "strong"
+                                          ? "bg-success/20"
+                                          : kw.type === "moderate"
+                                          ? "bg-warning/20"
+                                          : "bg-secondary"
+                                      }
+                                    >
+                                      {kw.keyword} (+{kw.weight})
+                                      {kw.position && ` [${kw.position}]`}
+                                      {kw.occurrences && kw.occurrences > 1 && ` x${kw.occurrences_capped || kw.occurrences}`}
+                                    </Badge>
+                                  ))}
+                                </div>
+                                {doc.uniqueKeywordsCount !== undefined && (
+                                  <div className="text-xs text-muted-foreground">
+                                    Unique keywords detected: {doc.uniqueKeywordsCount}
+                                  </div>
+                                )}
+                              </div>
+                            )}
 
-                        {doc.uniqueKeywordsCount !== undefined && (
-                          <div className="text-xs text-muted-foreground">
-                            Unique keywords: {doc.uniqueKeywordsCount}
+                            {doc.mandatoryFieldsStatus && (
+                              <div className="text-xs space-y-1">
+                                <span className="font-semibold">Mandatory Fields:</span>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {Object.entries(doc.mandatoryFieldsStatus).map(([field, status]) => (
+                                    <Badge 
+                                      key={field} 
+                                      variant={status === 'present' ? 'default' : 'destructive'}
+                                      className="text-xs"
+                                    >
+                                      {field}: {status}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {doc.secondaryType && doc.secondaryConfidence && doc.secondaryConfidence > 15 && (
+                              <div className="text-xs text-muted-foreground">
+                                <span className="font-semibold">Secondary Type:</span> {doc.secondaryType} ({doc.secondaryConfidence.toFixed(1)}%)
+                              </div>
+                            )}
+
+                            {doc.exclusionKeywordsFound && doc.exclusionKeywordsFound.length > 0 && (
+                              <div className="text-xs text-destructive space-y-1">
+                                <div className="font-semibold">⚠️ Exclusion Keywords Detected:</div>
+                                <div>{doc.exclusionKeywordsFound.join(', ')}</div>
+                                <p className="text-xs">These keywords suggest this might not be a {doc.finalType}</p>
+                              </div>
+                            )}
+
+                            {doc.validationPenaltiesApplied && doc.validationPenaltiesApplied.length > 0 && (
+                              <div className="text-xs text-warning space-y-1">
+                                <div className="font-semibold">Penalties Applied:</div>
+                                <ul className="list-disc list-inside">
+                                  {doc.validationPenaltiesApplied.map((penalty, pIdx) => (
+                                    <li key={pIdx}>{penalty}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {doc.ambiguityWarning && (
+                              <div className="text-xs text-warning space-y-1">
+                                <div className="font-semibold">⚠️ Ambiguity Warning</div>
+                                <div>{doc.ambiguityWarning}</div>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
+                        </CollapsibleContent>
+                      </Collapsible>
                     </>
                   )}
 
