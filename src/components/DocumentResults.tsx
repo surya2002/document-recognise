@@ -87,14 +87,14 @@ export const DocumentResults = ({ documents, onDelete }: DocumentResultsProps) =
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">Confidence: </span>
-                          <span className={`font-semibold ${getConfidenceColor(doc.finalConfidence)}`}>
-                            {doc.finalConfidence.toFixed(1)}%
+                          <span className={`font-semibold ${getConfidenceColor(doc.finalConfidence ?? 0)}`}>
+                            {(doc.finalConfidence ?? 0).toFixed(1)}%
                           </span>
                         </div>
                       </div>
 
                       <Progress 
-                        value={doc.finalConfidence} 
+                        value={doc.finalConfidence ?? 0} 
                         className="h-2 mb-3"
                       />
 
@@ -191,7 +191,7 @@ export const DocumentResults = ({ documents, onDelete }: DocumentResultsProps) =
 
                             {doc.secondaryType && doc.secondaryConfidence && doc.secondaryConfidence > 15 && (
                               <div className="text-xs text-muted-foreground">
-                                <span className="font-semibold">Secondary Type:</span> {doc.secondaryType} ({doc.secondaryConfidence.toFixed(1)}%)
+                                <span className="font-semibold">Secondary Type:</span> {doc.secondaryType} ({(doc.secondaryConfidence ?? 0).toFixed(1)}%)
                               </div>
                             )}
 
