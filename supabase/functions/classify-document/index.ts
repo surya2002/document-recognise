@@ -145,6 +145,18 @@ Before finalizing classification:
 3. **Set ambiguity warnings** if top two confidences are within 15% of each other
 4. **Check text quality** (good = >500 chars, fair = 200-500 chars, poor = <200 chars)
 
+**Penalty Format**: Each penalty in the \`validationPenaltiesApplied\` array MUST include:
+- The specific field/requirement that failed
+- Why it's important for this document type
+- The exact penalty percentage applied
+- Clear, actionable explanation
+
+Example penalty strings:
+- "Missing mandatory field 'PAN Number' which is required for ITR documents. Applied -15% confidence penalty."
+- "Exclusion keyword 'Resume' found in header region, suggesting this may not be an ITR document. Applied -50% penalty."
+- "Text quality is poor (<200 chars), reducing confidence in classification accuracy. Applied -20% penalty."
+- "Ambiguous classification: ITR (45%) vs Invoice (42%). Confidence scores too close. Applied -10% penalty to both."
+
 ---
 
 ## Output Format
@@ -175,7 +187,10 @@ You MUST return a valid JSON object (no markdown, no backticks) with this exact 
     "Education": "present"
   },
   "validationStatus": "PASSED",
-  "validationPenaltiesApplied": [],
+  "validationPenaltiesApplied": [
+    "Missing mandatory field 'PAN Number' which is required for ITR documents. Applied -15% confidence penalty.",
+    "Text quality is fair (350 chars), may affect accuracy. Applied -5% penalty."
+  ],
   "ambiguityWarning": null,
   "textQuality": "good",
   "textLength": 1245,
