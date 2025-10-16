@@ -112,27 +112,30 @@ const Index = () => {
 
     if (data) {
       const loadedDocs: ProcessedDocument[] = data.map(doc => {
-        const chunks = Array.isArray(doc.chunks) && doc.chunks.length > 0 ? doc.chunks[0] as any : {};
+        // Type cast the JSON chunks data properly
+        const chunksArray = doc.chunks as any[];
+        const chunkData = Array.isArray(chunksArray) && chunksArray.length > 0 ? chunksArray[0] : {};
+        
         return {
           fileName: doc.file_name,
           fileSize: doc.file_size || undefined,
-          ocrText: chunks.ocrText || undefined,
-          probableType: chunks.probableType || doc.final_type,
-          confidencePercentage: chunks.confidencePercentage || Number(doc.final_confidence),
-          keywordsDetected: chunks.keywordsDetected || [],
-          reasoning: chunks.reasoning || undefined,
-          secondaryType: chunks.secondaryType || undefined,
-          secondaryConfidence: chunks.secondaryConfidence || undefined,
-          exclusionKeywordsFound: chunks.exclusionKeywordsFound || undefined,
-          uniqueKeywordsCount: chunks.uniqueKeywordsCount || undefined,
-          mandatoryFieldsStatus: chunks.mandatoryFieldsStatus || undefined,
-          validationStatus: chunks.validationStatus || undefined,
-          validationPenaltiesApplied: chunks.validationPenaltiesApplied || undefined,
-          ambiguityWarning: chunks.ambiguityWarning || undefined,
-          textQuality: chunks.textQuality || undefined,
-          textLength: chunks.textLength || undefined,
-          preValidationType: chunks.preValidationType || undefined,
-          preValidationConfidence: chunks.preValidationConfidence || undefined,
+          ocrText: chunkData.ocrText || undefined,
+          probableType: chunkData.probableType || doc.final_type,
+          confidencePercentage: chunkData.confidencePercentage || Number(doc.final_confidence),
+          keywordsDetected: chunkData.keywordsDetected || [],
+          reasoning: chunkData.reasoning || undefined,
+          secondaryType: chunkData.secondaryType || undefined,
+          secondaryConfidence: chunkData.secondaryConfidence || undefined,
+          exclusionKeywordsFound: chunkData.exclusionKeywordsFound || undefined,
+          uniqueKeywordsCount: chunkData.uniqueKeywordsCount || undefined,
+          mandatoryFieldsStatus: chunkData.mandatoryFieldsStatus || undefined,
+          validationStatus: chunkData.validationStatus || undefined,
+          validationPenaltiesApplied: chunkData.validationPenaltiesApplied || undefined,
+          ambiguityWarning: chunkData.ambiguityWarning || undefined,
+          textQuality: chunkData.textQuality || undefined,
+          textLength: chunkData.textLength || undefined,
+          preValidationType: chunkData.preValidationType || undefined,
+          preValidationConfidence: chunkData.preValidationConfidence || undefined,
           finalType: doc.final_type as ProcessedDocument['finalType'],
           finalConfidence: Number(doc.final_confidence),
           status: doc.status as ProcessedDocument['status'],
