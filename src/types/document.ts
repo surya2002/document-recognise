@@ -9,14 +9,19 @@ export interface KeywordMatch {
   occurrences_capped?: number;
 }
 
-export interface DocumentChunk {
-  chunkIndex: number;
-  pageCount: number;
-  ocrText: string;
-  probableType: DocumentType;
-  confidencePercentage: number;
-  keywordsDetected: KeywordMatch[];
-  reasoning: string;
+export interface ProcessedDocument {
+  id?: string;
+  fileName: string;
+  fileSize?: number;
+  
+  // Classification results
+  ocrText?: string;
+  probableType?: DocumentType;
+  confidencePercentage?: number;
+  keywordsDetected?: KeywordMatch[];
+  reasoning?: string;
+  
+  // Optional classification details
   secondaryType?: DocumentType;
   secondaryConfidence?: number;
   exclusionKeywordsFound?: string[];
@@ -31,12 +36,8 @@ export interface DocumentChunk {
   textLength?: number;
   preValidationType?: DocumentType;
   preValidationConfidence?: number;
-}
-
-export interface ProcessedDocument {
-  id?: string;
-  fileName: string;
-  chunks: DocumentChunk[];
+  
+  // Processing metadata
   finalType: DocumentType;
   finalConfidence: number;
   status: "uploading" | "ocr" | "classifying" | "finished" | "error";

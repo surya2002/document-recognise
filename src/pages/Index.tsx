@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FileUploader } from "@/components/FileUploader";
 import { DocumentResults } from "@/components/DocumentResults";
 import { KeywordMatrix } from "@/components/KeywordMatrix";
-import { ProcessedDocument, DocumentChunk } from "@/types/document";
-import { calculateChunks, aggregateChunkResults } from "@/utils/pdfChunker";
+import { ProcessedDocument } from "@/types/document";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { FileText, LogOut, Loader2 } from "lucide-react";
@@ -112,15 +111,35 @@ const Index = () => {
     }
 
     if (data) {
-      const loadedDocs: ProcessedDocument[] = data.map(doc => ({
-        fileName: doc.file_name,
-        chunks: Array.isArray(doc.chunks) ? doc.chunks as any as DocumentChunk[] : [],
-        finalType: doc.final_type as ProcessedDocument['finalType'],
-        finalConfidence: Number(doc.final_confidence),
-        status: doc.status as ProcessedDocument['status'],
-        error: doc.error || undefined,
-        id: doc.id
-      }));
+      const loadedDocs: ProcessedDocument[] = data.map(doc => {
+        const chunks = Array.isArray(doc.chunks) && doc.chunks.length > 0 ? doc.chunks[0] : {};
+        return {
+          fileName: doc.file_name,
+          fileSize: doc.file_size || undefined,
+          ocrText: chunks.ocrText || undefined,
+          probableType: chunks.probableType || doc.final_type,
+          confidencePercentage: chunks.confidencePercentage || Number(doc.final_confidence),
+          keywordsDetected: chunks.keywordsDetected || [],
+          reasoning: chunks.reasoning || undefined,
+          secondaryType: chunks.secondaryType || undefined,
+          secondaryConfidence: chunks.secondaryConfidence || undefined,
+          exclusionKeywordsFound: chunks.exclusionKeywordsFound || undefined,
+          uniqueKeywordsCount: chunks.uniqueKeywordsCount || undefined,
+          mandatoryFieldsStatus: chunks.mandatoryFieldsStatus || undefined,
+          validationStatus: chunks.validationStatus || undefined,
+          validationPenaltiesApplied: chunks.validationPenaltiesApplied || undefined,
+          ambiguityWarning: chunks.ambiguityWarning || undefined,
+          textQuality: chunks.textQuality || undefined,
+          textLength: chunks.textLength || undefined,
+          preValidationType: chunks.preValidationType || undefined,
+          preValidationConfidence: chunks.preValidationConfidence || undefined,
+          finalType: doc.final_type as ProcessedDocument['finalType'],
+          finalConfidence: Number(doc.final_confidence),
+          status: doc.status as ProcessedDocument['status'],
+          error: doc.error || undefined,
+          id: doc.id
+        };
+      });
       setDocuments(loadedDocs);
     }
   };
@@ -192,7 +211,7 @@ const Index = () => {
     
     const newDoc: ProcessedDocument = {
       fileName: file.name,
-      chunks: [],
+      fileSize: file.size,
       finalType: "Unknown",
       finalConfidence: 0,
       status: "uploading"
@@ -297,31 +316,33 @@ const Index = () => {
         throw new Error('Classification failed');
       }
 
-      const chunkResult: DocumentChunk = {
-        chunkIndex: 1,
-        pageCount: estimatedPages,
+      // Store classification results directly
+      const classificationResult = {
         ocrText: ocrText.substring(0, 500),
         probableType: classifyData.probable_type,
         confidencePercentage: classifyData.confidence_percentage,
         keywordsDetected: classifyData.keywords_detected || [],
-        reasoning: classifyData.reasoning
+        reasoning: classifyData.reasoning,
+        secondaryType: classifyData.secondary_type,
+        secondaryConfidence: classifyData.secondary_confidence,
+        exclusionKeywordsFound: classifyData.exclusion_keywords_found,
+        uniqueKeywordsCount: classifyData.unique_keywords_count,
+        mandatoryFieldsStatus: classifyData.mandatory_fields_status,
+        validationStatus: classifyData.validation_status,
+        validationPenaltiesApplied: classifyData.validation_penalties_applied,
+        ambiguityWarning: classifyData.ambiguity_warning,
+        textQuality: classifyData.text_quality,
+        textLength: classifyData.text_length,
+        preValidationType: classifyData.pre_validation_type,
+        preValidationConfidence: classifyData.pre_validation_confidence
       };
-
-      const finalResult = aggregateChunkResults([
-        {
-          chunkIndex: 1,
-          pageCount: estimatedPages,
-          probableType: chunkResult.probableType,
-          confidencePercentage: chunkResult.confidencePercentage
-        }
-      ]);
 
       await supabase
         .from('documents')
         .update({
-          final_type: finalResult.finalType,
-          final_confidence: finalResult.finalConfidence,
-          chunks: [chunkResult] as any,
+          final_type: classifyData.probable_type,
+          final_confidence: classifyData.confidence_percentage,
+          chunks: [classificationResult] as any, // Keep for backward compatibility
           status: 'finished'
         })
         .eq('id', dbDoc.id);
@@ -329,9 +350,9 @@ const Index = () => {
       setDocuments(prev => prev.map((doc, i) => 
         i === docIndex ? {
           ...doc,
-          chunks: [chunkResult],
-          finalType: finalResult.finalType as ProcessedDocument['finalType'],
-          finalConfidence: finalResult.finalConfidence,
+          ...classificationResult,
+          finalType: classifyData.probable_type as ProcessedDocument['finalType'],
+          finalConfidence: classifyData.confidence_percentage,
           status: "finished" as const
         } : doc
       ));

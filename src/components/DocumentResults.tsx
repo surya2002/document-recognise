@@ -90,105 +90,95 @@ export const DocumentResults = ({ documents, onDelete }: DocumentResultsProps) =
                         className="h-2 mb-3"
                       />
 
-                      {doc.chunks.map((chunk, chunkIdx) => (
-                        <div key={chunkIdx} className="ml-4 mt-2 text-sm border-l-2 border-muted pl-3 space-y-2">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-muted-foreground">
-                              Chunk {chunk.chunkIndex} ({chunk.pageCount} pages):
-                            </span>
-                            <Badge variant="outline" className={getConfidenceBadge(chunk.confidencePercentage)}>
-                              {chunk.probableType} - {chunk.confidencePercentage.toFixed(1)}%
-                            </Badge>
-                            {chunk.validationStatus && (
-                              <Badge variant={chunk.validationStatus === 'PASSED' ? 'default' : 'destructive'}>
-                                {chunk.validationStatus}
-                              </Badge>
-                            )}
-                            {chunk.textQuality && (
-                              <Badge variant="outline" className={
-                                chunk.textQuality === 'good' ? 'border-success' :
-                                chunk.textQuality === 'fair' ? 'border-warning' : 'border-destructive'
-                              }>
-                                {chunk.textQuality} quality
-                              </Badge>
-                            )}
+                      <div className="ml-4 mt-2 text-sm border-l-2 border-muted pl-3 space-y-2">
+                        {doc.validationStatus && (
+                          <Badge variant={doc.validationStatus === 'PASSED' ? 'default' : 'destructive'}>
+                            {doc.validationStatus}
+                          </Badge>
+                        )}
+                        {doc.textQuality && (
+                          <Badge variant="outline" className={
+                            doc.textQuality === 'good' ? 'border-success' :
+                            doc.textQuality === 'fair' ? 'border-warning' : 'border-destructive'
+                          }>
+                            {doc.textQuality} quality
+                          </Badge>
+                        )}
+
+                        {doc.secondaryType && doc.secondaryConfidence && doc.secondaryConfidence > 15 && (
+                          <div className="text-xs text-muted-foreground">
+                            Secondary: {doc.secondaryType} ({doc.secondaryConfidence.toFixed(1)}%)
                           </div>
+                        )}
 
-                          {chunk.secondaryType && chunk.secondaryConfidence && chunk.secondaryConfidence > 15 && (
-                            <div className="text-xs text-muted-foreground">
-                              Secondary: {chunk.secondaryType} ({chunk.secondaryConfidence.toFixed(1)}%)
-                            </div>
-                          )}
+                        {doc.exclusionKeywordsFound && doc.exclusionKeywordsFound.length > 0 && (
+                          <div className="text-xs text-destructive">
+                            ⚠️ Exclusion keywords: {doc.exclusionKeywordsFound.join(', ')}
+                          </div>
+                        )}
 
-                          {chunk.exclusionKeywordsFound && chunk.exclusionKeywordsFound.length > 0 && (
-                            <div className="text-xs text-destructive">
-                              ⚠️ Exclusion keywords: {chunk.exclusionKeywordsFound.join(', ')}
-                            </div>
-                          )}
+                        {doc.validationPenaltiesApplied && doc.validationPenaltiesApplied.length > 0 && (
+                          <div className="text-xs text-warning">
+                            <div className="font-medium">Penalties:</div>
+                            <ul className="list-disc list-inside">
+                              {doc.validationPenaltiesApplied.map((penalty, pIdx) => (
+                                <li key={pIdx}>{penalty}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
 
-                          {chunk.validationPenaltiesApplied && chunk.validationPenaltiesApplied.length > 0 && (
-                            <div className="text-xs text-warning">
-                              <div className="font-medium">Penalties:</div>
-                              <ul className="list-disc list-inside">
-                                {chunk.validationPenaltiesApplied.map((penalty, pIdx) => (
-                                  <li key={pIdx}>{penalty}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                        {doc.ambiguityWarning && (
+                          <div className="text-xs text-warning font-medium">
+                            ⚠️ {doc.ambiguityWarning}
+                          </div>
+                        )}
 
-                          {chunk.ambiguityWarning && (
-                            <div className="text-xs text-warning font-medium">
-                              ⚠️ {chunk.ambiguityWarning}
-                            </div>
-                          )}
-
-                          {chunk.mandatoryFieldsStatus && (
-                            <div className="text-xs">
-                              <span className="font-medium">Mandatory Fields:</span>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {Object.entries(chunk.mandatoryFieldsStatus).map(([field, status]) => (
-                                  <Badge 
-                                    key={field} 
-                                    variant={status === 'present' ? 'default' : 'destructive'}
-                                    className="text-xs"
-                                  >
-                                    {field}: {status}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {chunk.keywordsDetected.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {chunk.keywordsDetected.map((kw, kwIdx) => (
-                                <Badge
-                                  key={kwIdx}
-                                  variant="secondary"
-                                  className={
-                                    kw.type === "strong"
-                                      ? "bg-success/20"
-                                      : kw.type === "moderate"
-                                      ? "bg-warning/20"
-                                      : "bg-secondary"
-                                  }
+                        {doc.mandatoryFieldsStatus && (
+                          <div className="text-xs">
+                            <span className="font-medium">Mandatory Fields:</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {Object.entries(doc.mandatoryFieldsStatus).map(([field, status]) => (
+                                <Badge 
+                                  key={field} 
+                                  variant={status === 'present' ? 'default' : 'destructive'}
+                                  className="text-xs"
                                 >
-                                  {kw.keyword} (+{kw.weight})
-                                  {kw.position && ` [${kw.position}]`}
-                                  {kw.occurrences && kw.occurrences > 1 && ` x${kw.occurrences_capped || kw.occurrences}`}
+                                  {field}: {status}
                                 </Badge>
                               ))}
                             </div>
-                          )}
+                          </div>
+                        )}
 
-                          {chunk.uniqueKeywordsCount !== undefined && (
-                            <div className="text-xs text-muted-foreground">
-                              Unique keywords: {chunk.uniqueKeywordsCount}
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                        {doc.keywordsDetected && doc.keywordsDetected.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {doc.keywordsDetected.map((kw, kwIdx) => (
+                              <Badge
+                                key={kwIdx}
+                                variant="secondary"
+                                className={
+                                  kw.type === "strong"
+                                    ? "bg-success/20"
+                                    : kw.type === "moderate"
+                                    ? "bg-warning/20"
+                                    : "bg-secondary"
+                                }
+                              >
+                                {kw.keyword} (+{kw.weight})
+                                {kw.position && ` [${kw.position}]`}
+                                {kw.occurrences && kw.occurrences > 1 && ` x${kw.occurrences_capped || kw.occurrences}`}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+
+                        {doc.uniqueKeywordsCount !== undefined && (
+                          <div className="text-xs text-muted-foreground">
+                            Unique keywords: {doc.uniqueKeywordsCount}
+                          </div>
+                        )}
+                      </div>
                     </>
                   )}
 
