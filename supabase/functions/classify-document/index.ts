@@ -145,17 +145,54 @@ Before finalizing classification:
 3. **Set ambiguity warnings** if top two confidences are within 15% of each other
 4. **Check text quality** (good = >500 chars, fair = 200-500 chars, poor = <200 chars)
 
-**Penalty Format**: Each penalty in the \`validationPenaltiesApplied\` array MUST include:
-- The specific field/requirement that failed
-- Why it's important for this document type
-- The exact penalty percentage applied
-- Clear, actionable explanation
+**CRITICAL - Penalty Format Requirements**:
 
-Example penalty strings:
-- "Missing mandatory field 'PAN Number' which is required for ITR documents. Applied -15% confidence penalty."
-- "Exclusion keyword 'Resume' found in header region, suggesting this may not be an ITR document. Applied -50% penalty."
-- "Text quality is poor (<200 chars), reducing confidence in classification accuracy. Applied -20% penalty."
-- "Ambiguous classification: ITR (45%) vs Invoice (42%). Confidence scores too close. Applied -10% penalty to both."
+Each penalty in the \`validationPenaltiesApplied\` array MUST follow this exact template:
+
+"[WHAT FAILED] which is [WHY IT MATTERS] for [DOCUMENT TYPE] documents. Applied -[XX]% confidence penalty because [REASONING FOR PERCENTAGE]."
+
+Components:
+1. **[WHAT FAILED]**: Specific field/requirement that's missing or incorrect
+   - Examples: "Missing mandatory field 'PAN Number'", "Exclusion keyword 'Resume' found in header"
+   
+2. **[WHY IT MATTERS]**: Business/technical reason why this is important
+   - Examples: "required to verify taxpayer identity", "indicates this is not a tax document"
+   
+3. **[DOCUMENT TYPE]**: The document type being validated
+   - Examples: "ITR", "Invoice", "Bank Statement"
+   
+4. **[XX]%**: Exact penalty percentage applied (must match your calculation)
+   
+5. **[REASONING FOR PERCENTAGE]**: Why this specific percentage
+   - Examples: "major identifying field", "strong contradiction to document type", "minor quality issue"
+
+**Good Examples**:
+- "Missing mandatory field 'PAN Number' which is required to verify taxpayer identity for ITR documents. Applied -15% confidence penalty because PAN is a major identifying field."
+- "Exclusion keyword 'Resume' found in header region which indicates this is not a tax document for ITR documents. Applied -50% confidence penalty because it's a strong contradiction to the document type."
+- "Text quality is poor (<200 chars) which reduces accuracy of keyword matching for all documents. Applied -20% confidence penalty because minimal text provides insufficient classification evidence."
+- "Ambiguous classification between ITR (45%) and Invoice (42%) which shows no clear winner for any document type. Applied -10% confidence penalty to both because scores are too close (<15% difference)."
+
+**Bad Examples (DO NOT USE)**:
+- "Applied -40% penalty" ❌ (no explanation of what failed or why)
+- "Missing field, -15% penalty" ❌ (no detail on which field or why it matters)
+- "Low confidence due to missing data" ❌ (vague, no specific percentage or field)
+
+**Penalty Scenarios to Handle**:
+
+1. **Missing Mandatory Field**: -10% to -20% per field
+   - Template: "Missing mandatory field '[FIELD]' which is [PURPOSE] for [DOCTYPE] documents. Applied -XX% because [IMPORTANCE LEVEL]."
+
+2. **Exclusion Keywords Found**: -30% to -60% per keyword
+   - Template: "Exclusion keyword '[KEYWORD]' found in [REGION] which [CONTRADICTION] for [DOCTYPE] documents. Applied -XX% because [SEVERITY]."
+
+3. **Poor Text Quality**: -10% to -30%
+   - Template: "Text quality is [QUALITY] ([CHAR_COUNT] chars) which [IMPACT] for [DOCTYPE] documents. Applied -XX% because [LIMITATION]."
+
+4. **Ambiguous Classification**: -5% to -15%
+   - Template: "Ambiguous classification between [TYPE1] (XX%) and [TYPE2] (XX%) which shows [ISSUE]. Applied -XX% because [REASON]."
+
+5. **Regional Keyword Absence**: -5% to -15%
+   - Template: "No regional language keywords found which reduces confidence in [REGION] document identification for [DOCTYPE]. Applied -XX% because [IMPACT]."
 
 ---
 
