@@ -204,11 +204,19 @@ export const DocumentResults = ({ documents, onDelete }: DocumentResultsProps) =
                             )}
 
                             {doc.validationPenaltiesApplied && doc.validationPenaltiesApplied.length > 0 && (
-                              <div className="text-xs text-warning space-y-1">
-                                <div className="font-semibold">Penalties Applied:</div>
-                                <ul className="list-disc list-inside">
+                              <div className="text-sm space-y-2 p-3 bg-warning/10 border border-warning/30 rounded">
+                                <div className="font-semibold text-warning flex items-center gap-2">
+                                  <AlertCircle className="h-4 w-4" />
+                                  Validation Penalties Applied
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  These issues reduced the confidence score or affected classification:
+                                </p>
+                                <ul className="space-y-1">
                                   {doc.validationPenaltiesApplied.map((penalty, pIdx) => (
-                                    <li key={pIdx}>{penalty}</li>
+                                    <li key={pIdx} className="text-xs pl-4 border-l-2 border-warning/50">
+                                      {penalty}
+                                    </li>
                                   ))}
                                 </ul>
                               </div>
