@@ -207,18 +207,22 @@ export const DocumentResults = ({ documents, onDelete }: DocumentResultsProps) =
                               <div className="text-sm space-y-2 p-3 bg-warning/10 border border-warning/30 rounded">
                                 <div className="font-semibold text-warning flex items-center gap-2">
                                   <AlertCircle className="h-4 w-4" />
-                                  Validation Penalties Applied
+                                  Classification Issues Detected
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                  These issues reduced the confidence score or affected classification:
+                                <p className="text-xs text-muted-foreground mb-2">
+                                  The following issues were found that reduced confidence or affected the final classification:
                                 </p>
-                                <ul className="space-y-1">
+                                <div className="space-y-2">
                                   {doc.validationPenaltiesApplied.map((penalty, pIdx) => (
-                                    <li key={pIdx} className="text-xs pl-4 border-l-2 border-warning/50">
-                                      {penalty}
-                                    </li>
+                                    <div key={pIdx} className="bg-background/50 p-2 rounded border-l-2 border-warning">
+                                      <div className="text-xs font-medium text-foreground mb-1">Issue #{pIdx + 1}</div>
+                                      <div className="text-xs text-muted-foreground leading-relaxed">{penalty}</div>
+                                    </div>
                                   ))}
-                                </ul>
+                                </div>
+                                <p className="text-xs text-muted-foreground italic mt-2">
+                                  💡 Each issue above explains why it reduced the confidence score for this document type
+                                </p>
                               </div>
                             )}
 
