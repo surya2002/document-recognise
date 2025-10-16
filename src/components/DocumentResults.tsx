@@ -214,8 +214,8 @@ export const DocumentResults = ({ documents, onDelete }: DocumentResultsProps) =
                                 </p>
                                 <div className="space-y-2">
                                   {doc.validationPenaltiesApplied.map((penalty, pIdx) => (
-                                    <div key={pIdx} className="bg-background/50 p-2 rounded border-l-2 border-warning">
-                                      <div className="text-xs font-medium text-foreground mb-1">Issue #{pIdx + 1}</div>
+                                    <div key={pIdx} className="bg-background/50 p-2 rounded border-l-2 border-warning flex gap-2">
+                                      <AlertCircle className="h-4 w-4 text-warning flex-shrink-0 mt-0.5" />
                                       <div className="text-xs text-muted-foreground leading-relaxed">{penalty}</div>
                                     </div>
                                   ))}
