@@ -202,9 +202,9 @@ You MUST return a valid JSON object (no markdown, no backticks) with this exact 
 
 \`\`\`json
 {
-  "probableType": "Resume",
-  "confidencePercentage": 85.5,
-  "keywordsDetected": [
+  "probable_type": "Resume",
+  "confidence_percentage": 85.5,
+  "keywords_detected": [
     {
       "keyword": "Work Experience",
       "weight": 3,
@@ -215,24 +215,24 @@ You MUST return a valid JSON object (no markdown, no backticks) with this exact 
     }
   ],
   "reasoning": "Found strong indicators like 'Work Experience' in header (×1.5) and 'Education' in body (×1.1). Total raw score: 20.4 after position multipliers. No exclusion keywords found.",
-  "secondaryType": "ITR",
-  "secondaryConfidence": 12.3,
-  "exclusionKeywordsFound": [],
-  "uniqueKeywordsCount": 8,
-  "mandatoryFieldsStatus": {
+  "secondary_type": "ITR",
+  "secondary_confidence": 12.3,
+  "exclusion_keywords_found": [],
+  "unique_keywords_count": 8,
+  "mandatory_fields_status": {
     "Work Experience": "present",
     "Education": "present"
   },
-  "validationStatus": "PASSED",
-  "validationPenaltiesApplied": [
+  "validation_status": "PASSED",
+  "validation_penalties_applied": [
     "Missing mandatory field 'PAN Number' which is required for ITR documents. Applied -15% confidence penalty.",
     "Text quality is fair (350 chars), may affect accuracy. Applied -5% penalty."
   ],
-  "ambiguityWarning": null,
-  "textQuality": "good",
-  "textLength": 1245,
-  "preValidationType": "Resume",
-  "preValidationConfidence": 85.5
+  "ambiguity_warning": null,
+  "text_quality": "good",
+  "text_length": 1245,
+  "pre_validation_type": "Resume",
+  "pre_validation_confidence": 85.5
 }
 \`\`\`
 
@@ -256,9 +256,9 @@ You MUST return a valid JSON object (no markdown, no backticks) with this exact 
 **Expected Output:**
 \`\`\`json
 {
-  "probableType": "Resume",
-  "confidencePercentage": 92.8,
-  "keywordsDetected": [
+  "probable_type": "Resume",
+  "confidence_percentage": 92.8,
+  "keywords_detected": [
     {
       "keyword": "Resume Objective",
       "weight": 3,
@@ -285,18 +285,18 @@ You MUST return a valid JSON object (no markdown, no backticks) with this exact 
     }
   ],
   "reasoning": "Strong resume indicators: 'Resume Objective' in header (3 × 1.2 = 3.6), 'Work Experience' in body (3 × 1.0 = 3.0), 'Education' in body (3 × 1.0 = 3.0). Total raw score: 9.6. No exclusion keywords found. Clear resume structure.",
-  "secondaryType": "Unknown",
-  "secondaryConfidence": 0.0,
-  "exclusionKeywordsFound": [],
-  "uniqueKeywordsCount": 3,
-  "mandatoryFieldsStatus": {},
-  "validationStatus": "PASSED",
-  "validationPenaltiesApplied": [],
-  "ambiguityWarning": null,
-  "textQuality": "good",
-  "textLength": 185,
-  "preValidationType": "Resume",
-  "preValidationConfidence": 92.8
+  "secondary_type": "Unknown",
+  "secondary_confidence": 0.0,
+  "exclusion_keywords_found": [],
+  "unique_keywords_count": 3,
+  "mandatory_fields_status": {},
+  "validation_status": "PASSED",
+  "validation_penalties_applied": [],
+  "ambiguity_warning": null,
+  "text_quality": "good",
+  "text_length": 185,
+  "pre_validation_type": "Resume",
+  "pre_validation_confidence": 92.8
 }
 \`\`\`
 
