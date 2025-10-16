@@ -130,12 +130,13 @@ Upload sample Aadhaar cards and verify:
 
 ### Scalability Enhancements
 1. **Multi-Language Support**: Extend `regional` keywords beyond Hindi to Tamil, Telugu, Marathi, Bengali
-2. **Hybrid Documents**: Detect and split documents containing multiple types (e.g., Form 16 + Salary Slips)
-3. **Field Extraction**: Beyond classification, extract structured data (dates, amounts, names) using Gemini
-4. **Confidence Tuning**: ML model to learn optimal weights from user corrections/feedback
-5. **Batch Processing**: Queue system for large document sets with progress tracking
-6. **API Integration**: RESTful API for third-party systems to integrate classification
-7. **Custom Workflows**: User-defined post-classification actions (auto-tag, route, archive)
+3. **Hybrid Documents**: Detect and split documents containing multiple types (e.g., Form 16 + Salary Slips)
+4. **Field Extraction**: Beyond classification, extract structured data (dates, amounts, names) using Gemini
+5. **Confidence Tuning**: ML model to learn optimal weights from user corrections/feedback
+6. **Batch Processing**: Queue system for large document sets with progress tracking
+7. **API Integration**: RESTful API for third-party systems to integrate classification
+8. **Custom Workflows**: User-defined post-classification actions (auto-tag, route, archive)
+9. **Additional Media Support**: Additional media support along with capabilities to identify more than just documents.
 
 ### Enterprise Features
 1. **Role-Based Categories**: Different keyword matrices for departments (HR sees Resumes, Finance sees Invoices)
