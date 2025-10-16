@@ -53,6 +53,9 @@ export const KEYWORD_MATRIX: {
     exclusionPenalty?: number;
     mandatory?: any;
     regional?: any;
+    headerMultiplier?: number;
+    bodyMultiplier?: number;
+    footerMultiplier?: number;
   };
 } = {
   Resume: {

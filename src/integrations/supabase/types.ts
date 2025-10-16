@@ -76,10 +76,13 @@ export type Database = {
       }
       keyword_matrix: {
         Row: {
+          body_multiplier: number | null
           created_at: string
           doc_type: string
           exclusion_keywords: string[] | null
           exclusion_penalty_percentage: number | null
+          footer_multiplier: number | null
+          header_multiplier: number | null
           id: string
           mandatory_fields: Json | null
           moderate_keywords: string[]
@@ -90,10 +93,13 @@ export type Database = {
           weak_keywords: string[]
         }
         Insert: {
+          body_multiplier?: number | null
           created_at?: string
           doc_type: string
           exclusion_keywords?: string[] | null
           exclusion_penalty_percentage?: number | null
+          footer_multiplier?: number | null
+          header_multiplier?: number | null
           id?: string
           mandatory_fields?: Json | null
           moderate_keywords?: string[]
@@ -104,10 +110,13 @@ export type Database = {
           weak_keywords?: string[]
         }
         Update: {
+          body_multiplier?: number | null
           created_at?: string
           doc_type?: string
           exclusion_keywords?: string[] | null
           exclusion_penalty_percentage?: number | null
+          footer_multiplier?: number | null
+          header_multiplier?: number | null
           id?: string
           mandatory_fields?: Json | null
           moderate_keywords?: string[]

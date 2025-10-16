@@ -15,7 +15,7 @@ You are an advanced Indian document type classifier. Your task is to analyze OCR
 
 1. **Case-insensitive matching**: All keyword matching is case-insensitive
 2. **Partial matching**: "INVOICE" matches "TAX INVOICE", "INVOICE NO", "INVOICE NUMBER", etc.
-3. **Position-aware scoring**: Keywords in different document regions have different weights
+3. **Position-aware scoring**: Keywords in different document regions have configurable weights
 4. **Frequency capping**: Same keyword repeated multiple times is capped at 3× weight to prevent gaming
 5. **Validation-first approach**: Even high confidence scores can be overridden if mandatory fields are missing
 
@@ -25,9 +25,11 @@ You are an advanced Indian document type classifier. Your task is to analyze OCR
 
 Divide the OCR text into three regions:
 
-- **Header Region**: First 500 characters → Apply 1.2× multiplier
-- **Body Region**: Characters 501 to (length - 300) → Apply 1.0× multiplier (standard)
-- **Footer Region**: Last 300 characters → Apply 0.8× multiplier
+- **Header Region**: First 500 characters
+- **Body Region**: Characters 501 to (length - 300)
+- **Footer Region**: Last 300 characters
+
+Each document type has custom multipliers for these regions.
 
 ---
 
@@ -37,6 +39,16 @@ Divide the OCR text into three regions:
 
   matrixData.forEach((row: any) => {
     prompt += `### ${row.doc_type}\n\n`;
+    
+    // Position multipliers (custom per document type)
+    const headerMult = row.header_multiplier || 1.2;
+    const bodyMult = row.body_multiplier || 1.0;
+    const footerMult = row.footer_multiplier || 0.8;
+    
+    prompt += `**Position Multipliers for ${row.doc_type}**:\n`;
+    prompt += `- Header (first 500 chars): ${headerMult}× multiplier\n`;
+    prompt += `- Body (middle section): ${bodyMult}× multiplier\n`;
+    prompt += `- Footer (last 300 chars): ${footerMult}× multiplier\n\n`;
     
     // Strong/Moderate/Weak keywords
     if (row.strong_keywords && row.strong_keywords.length > 0) {
@@ -86,13 +98,16 @@ For each document type:
 \`\`\`
 For each keyword found:
   1. Determine keyword weight (3, 2, or 1)
-  2. Determine position multiplier (1.2, 1.0, or 0.8)
-  3. Count occurrences (cap at 3 to prevent keyword stuffing)
+  2. Determine the document region (header, body, or footer)
+  3. Apply the custom position multiplier for that document type and region
+  4. Count occurrences (cap at 3 to prevent keyword stuffing)
   
-  Keyword Score = weight × position_multiplier × min(occurrences, 3)
+  Keyword Score = weight × custom_position_multiplier × min(occurrences, 3)
 
 Raw Score for Document Type = Sum of all Keyword Scores
 \`\`\`
+
+**IMPORTANT**: Use the custom position multipliers specified for each document type above, NOT the default values.
 
 ### Phase 2: Exclusion Penalty Application
 

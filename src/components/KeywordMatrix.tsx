@@ -50,7 +50,10 @@ export const KeywordMatrix = () => {
             exclusion: row.exclusion_keywords || [],
             exclusionPenalty: row.exclusion_penalty_percentage || 50,
             mandatory: row.mandatory_fields || {},
-            regional: row.regional_keywords || {}
+            regional: row.regional_keywords || {},
+            headerMultiplier: row.header_multiplier || 1.2,
+            bodyMultiplier: row.body_multiplier || 1.0,
+            footerMultiplier: row.footer_multiplier || 0.8
           };
         });
         setEditedMatrix(loadedMatrix);
@@ -104,7 +107,10 @@ export const KeywordMatrix = () => {
         exclusion: [],
         exclusionPenalty: 50,
         mandatory: {},
-        regional: {}
+        regional: {},
+        headerMultiplier: 1.2,
+        bodyMultiplier: 1.0,
+        footerMultiplier: 0.8
       }
     }));
     setNewDocType("");
@@ -137,7 +143,10 @@ export const KeywordMatrix = () => {
             exclusion: (keywords.exclusion || []).filter(kw => kw.trim() !== ''),
             exclusionPenalty: keywords.exclusionPenalty || 50,
             mandatory: keywords.mandatory || {},
-            regional: keywords.regional || {}
+            regional: keywords.regional || {},
+            headerMultiplier: keywords.headerMultiplier || 1.2,
+            bodyMultiplier: keywords.bodyMultiplier || 1.0,
+            footerMultiplier: keywords.footerMultiplier || 0.8
           }
         ])
       ) as any;
@@ -156,7 +165,10 @@ export const KeywordMatrix = () => {
         exclusion_keywords: keywords.exclusion || [],
         exclusion_penalty_percentage: keywords.exclusionPenalty || 50,
         mandatory_fields: keywords.mandatory || {},
-        regional_keywords: keywords.regional || {}
+        regional_keywords: keywords.regional || {},
+        header_multiplier: keywords.headerMultiplier || 1.2,
+        body_multiplier: keywords.bodyMultiplier || 1.0,
+        footer_multiplier: keywords.footerMultiplier || 0.8
       }));
 
       const { error } = await supabase
@@ -330,6 +342,70 @@ export const KeywordMatrix = () => {
                               </Button>
                             </div>
                           ))}
+                        </div>
+                      </div>
+
+                      {/* Position Multipliers */}
+                      <div className="border-t pt-3 mt-3">
+                        <Label className="text-base font-semibold mb-3 block">Position-Based Multipliers</Label>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Keywords found in different document regions are multiplied by these values
+                        </p>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <Label className="text-sm">Header (first 500 chars)</Label>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              max="3"
+                              value={(keywords as any).headerMultiplier || 1.2}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 1.2;
+                                setEditedMatrix(prev => ({
+                                  ...prev,
+                                  [docType]: { ...prev[docType], headerMultiplier: val }
+                                }));
+                              }}
+                              className="mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-sm">Body (middle section)</Label>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              max="3"
+                              value={(keywords as any).bodyMultiplier || 1.0}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 1.0;
+                                setEditedMatrix(prev => ({
+                                  ...prev,
+                                  [docType]: { ...prev[docType], bodyMultiplier: val }
+                                }));
+                              }}
+                              className="mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-sm">Footer (last 300 chars)</Label>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              max="3"
+                              value={(keywords as any).footerMultiplier || 0.8}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 0.8;
+                                setEditedMatrix(prev => ({
+                                  ...prev,
+                                  [docType]: { ...prev[docType], footerMultiplier: val }
+                                }));
+                              }}
+                              className="mt-1"
+                            />
+                          </div>
                         </div>
                       </div>
 
