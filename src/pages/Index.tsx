@@ -112,7 +112,7 @@ const Index = () => {
 
     if (data) {
       const loadedDocs: ProcessedDocument[] = data.map(doc => {
-        const chunks = Array.isArray(doc.chunks) && doc.chunks.length > 0 ? doc.chunks[0] : {};
+        const chunks = Array.isArray(doc.chunks) && doc.chunks.length > 0 ? doc.chunks[0] as any : {};
         return {
           fileName: doc.file_name,
           fileSize: doc.file_size || undefined,
@@ -362,7 +362,7 @@ const Index = () => {
 
       toast({
         title: "Document processed",
-        description: `${file.name} classified as ${finalResult.finalType}`,
+        description: `${file.name} classified as ${classifyData.probable_type}`,
       });
 
     } catch (error) {

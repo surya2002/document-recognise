@@ -24,9 +24,15 @@ export type Database = {
           final_confidence: number
           final_type: string
           id: string
+          keywords_detected: Json | null
+          ocr_text: string | null
+          reasoning: string | null
+          secondary_type: string | null
           status: string
+          text_quality: string | null
           updated_at: string
           user_id: string | null
+          validation_status: string | null
         }
         Insert: {
           chunks?: Json
@@ -37,9 +43,15 @@ export type Database = {
           final_confidence: number
           final_type: string
           id?: string
+          keywords_detected?: Json | null
+          ocr_text?: string | null
+          reasoning?: string | null
+          secondary_type?: string | null
           status?: string
+          text_quality?: string | null
           updated_at?: string
           user_id?: string | null
+          validation_status?: string | null
         }
         Update: {
           chunks?: Json
@@ -50,9 +62,15 @@ export type Database = {
           final_confidence?: number
           final_type?: string
           id?: string
+          keywords_detected?: Json | null
+          ocr_text?: string | null
+          reasoning?: string | null
+          secondary_type?: string | null
           status?: string
+          text_quality?: string | null
           updated_at?: string
           user_id?: string | null
+          validation_status?: string | null
         }
         Relationships: []
       }
